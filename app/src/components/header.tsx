@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { nanoid } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useTheme } from "next-themes";
 import { Sun, Moon } from "lucide-react";
