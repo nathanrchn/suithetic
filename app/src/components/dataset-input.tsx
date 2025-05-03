@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { HFDataset } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -8,25 +9,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 
-export type HFDataset = {
-  path: string;
-  config: string;
-  split?: string;
-}
-
 export default function DatasetInput({
   dataset,
   setDataset
 }: {
-  dataset: HFDataset;
+  dataset: HFDataset | null;
   setDataset: (dataset: HFDataset) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [popOpen, setPopOpen] = useState(false);
-  const [path, setPath] = useState(dataset.path);
+  const [path, setPath] = useState(dataset?.path || "");
   const [completions, setCompletions] = useState<string[]>([]);
-  const [split, setSplit] = useState<string | null>(dataset.split || null);
-  const [config, setConfig] = useState<string | null>(dataset.config || null);
+  const [split, setSplit] = useState<string | null>(dataset?.split || null);
+  const [config, setConfig] = useState<string | null>(dataset?.config || null);
   const [configsAndSplits, setConfigsAndSplits] = useState<Record<string, string[]>>({});
 
   const quickSearch = async (value: string) => {
@@ -166,7 +161,7 @@ export default function DatasetInput({
                 <Select value={split || ""} onValueChange={(value) => {
                   setSplit(value);
                 }}>
-                  <SelectTrigger>
+                  <SelectTrigger disabled={!config}>
                     <SelectValue placeholder="Select a split" />
                   </SelectTrigger>
                   <SelectContent>
