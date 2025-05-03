@@ -49,10 +49,11 @@ export default function DatasetInput({
     setSplit(null);
 
     if (Object.keys(configsAndSplits).length === 1) {
-      setConfig(Object.keys(configsAndSplits)[0]);
+      const newConfig = Object.keys(configsAndSplits)[0];
+      setConfig(newConfig);
 
-      if (configsAndSplits[config || ""] && configsAndSplits[config || ""].length === 1) {
-        setSplit(configsAndSplits[config || ""][0]);
+      if (configsAndSplits[newConfig] && configsAndSplits[newConfig].length === 1) {
+        setSplit(configsAndSplits[newConfig][0]);
       }
     }
   }
@@ -142,6 +143,7 @@ export default function DatasetInput({
                 <Label className="text-right">Config</Label>
                 <Select value={config || ""} onValueChange={(value) => {
                   setConfig(value);
+
                   if (configsAndSplits[value] && configsAndSplits[value].length === 1) {
                     setSplit(configsAndSplits[value][0]);
                   }
