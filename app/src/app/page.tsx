@@ -7,12 +7,13 @@ import DatasetInput, { HFDataset } from "@/components/dataset-input";
 export default function Home() {
   const [dataset, setDataset] = useState<HFDataset>({
     path: "",
+    config: "",
     split: "train"
   });
 
   return (
     <div className="flex flex-col items-center justify-center h-screen">
-      <DatasetInput setDataset={setDataset} />
+      <DatasetInput dataset={dataset} setDataset={setDataset} />
     </div>
   );
 }
