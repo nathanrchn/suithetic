@@ -25,31 +25,29 @@ export default function DatasetViewer({
 
   return data && features && (
     <div className="space-y-4">
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-                <TableRow>
-                {features.map((feature) => (
-                  <TableHead key={feature}>{feature}</TableHead>
-                ))}
-              </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((row) => (
-              <TableRow key={row.row_idx}>
-                {features.map((feature) => (
-                  <TableCell 
-                  key={feature} 
-                  className="text-xs max-w-[250px] whitespace-pre-wrap break-words overflow-hidden"
-                >
-                  {row.row[feature].length > 100 ? `${row.row[feature].slice(0, 100)}...` : row.row[feature]}
-                </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <Table>
+        <TableHeader>
+              <TableRow>
+              {features.map((feature) => (
+                <TableHead key={feature}>{feature}</TableHead>
+              ))}
+            </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.map((row) => (
+            <TableRow key={row.row_idx}>
+              {features.map((feature) => (
+                <TableCell 
+                key={feature} 
+                className="text-xs max-w-[250px] whitespace-pre-wrap break-words overflow-hidden"
+              >
+                {row.row[feature].length > 100 ? `${row.row[feature].slice(0, 100)}...` : row.row[feature]}
+              </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }

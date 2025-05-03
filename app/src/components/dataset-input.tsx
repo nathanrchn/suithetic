@@ -71,7 +71,7 @@ export default function DatasetInput({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">
-          {path ? path : "Select a dataset"}
+          {dataset ? dataset.path : "Select a dataset"}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
