@@ -3,9 +3,9 @@ module suithetic::dataset {
     use sui::coin::Coin;
     use sui::package::claim;
     use std::string::String;
+    use suithetic::dataset_rules;
     use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
     use sui::transfer_policy::{Self, TransferPolicy, TransferRequest};
-
     const ENoAccess: u64 = 0;
 
     public struct DatasetMetadata has store {
@@ -17,6 +17,7 @@ module suithetic::dataset {
         id: UID,
         owner: address,
         blob_id: String,
+        creator: address,
         metadata: DatasetMetadata,
     }
 
@@ -26,7 +27,8 @@ module suithetic::dataset {
     fun init(otw: DATASET, ctx: &mut TxContext) {
         let publisher = claim(otw, ctx);
 
-        let (dataset_policy, dataset_policy_cap) = transfer_policy::new<Dataset>(&publisher, ctx);
+        let (mut dataset_policy, dataset_policy_cap) = transfer_policy::new<Dataset>(&publisher, ctx);
+        dataset_rules::addRoyaltyRule<Dataset>(&mut dataset_policy, &dataset_policy_cap, 100);
 
         transfer::public_share_object(dataset_policy);
         transfer::public_transfer(dataset_policy_cap, ctx.sender());
@@ -39,6 +41,7 @@ module suithetic::dataset {
             id: object::new(ctx),
             owner: ctx.sender(),
             blob_id,
+            creator: ctx.sender(),
             metadata: DatasetMetadata {
                 name,
                 num_rows,
@@ -76,6 +79,10 @@ module suithetic::dataset {
 
     entry fun seal_approve(id: vector<u8>, dataset: &Dataset, ctx: &TxContext) {
         assert!(approve_internal(id, dataset, ctx.sender()), ENoAccess);
+    }
+
+    public fun get_owner(dataset: &Dataset): address {
+        dataset.owner
     }
 
     fun is_prefix(prefix: vector<u8>, word: vector<u8>): bool {
