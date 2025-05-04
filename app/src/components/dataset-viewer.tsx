@@ -5,9 +5,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 export default function DatasetViewer({
   features,
   data,
+  maxLength = 100,
 }: {
   features: string[];
   data: any[];
+  maxLength?: number;
 }) {
   return data.length > 0 && features.length > 0 && (
     <div className="space-y-4">
@@ -27,7 +29,7 @@ export default function DatasetViewer({
                 key={feature} 
                 className="text-xs max-w-[250px] whitespace-pre-wrap break-words overflow-hidden"
               >
-                {row.row[feature].length > 100 ? `${row.row[feature].slice(0, 100)}...` : row.row[feature]}
+                {row.row[feature].length > maxLength ? `${row.row[feature].slice(0, maxLength)}...` : row.row[feature]}
               </TableCell>
               ))}
             </TableRow>

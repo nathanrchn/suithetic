@@ -1,11 +1,12 @@
 "use client";
 
-import { getModels } from "@/lib/actions";
+import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { getModels, generate } from "@/lib/actions";
 import { Textarea } from "@/components/ui/textarea";
 import DatasetInput from "@/components/dataset-input";
 import DatasetViewer from "@/components/dataset-viewer";
@@ -19,24 +20,46 @@ export default function CreatePage() {
   const [prompt, setPrompt] = useState<string>("");
   const [numRows, setNumRows] = useState<number>(100);
   const [features, setFeatures] = useState<string[]>([]);
+  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [inputFeature, setInputFeature] = useState<string>("");
   const [dataset, setDataset] = useState<HFDataset | null>(null);
   const [isStructured, setIsStructured] = useState<boolean>(false);
   const [jsonSchema, setJsonSchema] = useState<string | null>(null);
-  const [config, setConfig] = useState<GenerationConfig | null>(null);
 
-  const handleTestGeneration = () => {
+  const handleTestGeneration = async () => {
     if (!dataset) return;
     
-    const generationConfig: GenerationConfig = {
-      model,
-      inputFeature,
-      jsonSchema,
-      numRows
-    };
+    setIsLoading(true);
     
-    setConfig(generationConfig);
+    try {
+      const generationConfig: GenerationConfig = {
+        model,
+        inputFeature,
+        jsonSchema,
+        numRows,
+        prompt
+      };
+      
+      const testSamples = data.slice(0, 3).map((row) => row.row[inputFeature]);
+      const outputs = await generate(generationConfig, testSamples);
+      
+      const preview = testSamples.map((input, index) => ({
+        row_idx: index,
+        row: {
+          [inputFeature]: input,
+          "generated_output": outputs[index] || "No output generated"
+        }
+      }));
+      
+      setPreviewData(preview);
+    } catch (error) {
+      console.error("Generation failed:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
 
   useEffect(() => {
     getModels().then((models) => {
@@ -159,18 +182,38 @@ export default function CreatePage() {
                     onChange={(e) => setPrompt(e.target.value)}
                   />
                   <p className="text-sm text-gray-500 mt-2">
-                    You can use {"{input}"} to reference the input feature in your prompt.
+                    Use {"{input}"} to reference the input feature in your prompt.
                   </p>
                 </div>
 
                 <Button 
                   className="w-full" 
                   size="lg"
-                  disabled={!model || !inputFeature || !prompt || (isStructured && !jsonSchema)}
+                  disabled={!model || !inputFeature || !prompt || (isStructured && !jsonSchema) || isLoading}
                   onClick={handleTestGeneration}
                 >
-                  Test Generation
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    "Test Generation With 3 Rows"
+                  )}
                 </Button>
+
+                {previewData.length > 0 && (
+                  <div className="mt-8">
+                    <h2 className="text-xl font-semibold mb-4">Generation Results</h2>
+                    <div className="border rounded-md p-4 max-h-[400px] overflow-y-auto">
+                      <DatasetViewer 
+                        features={[inputFeature, "generated_output"]} 
+                        data={previewData}
+                        maxLength={250}
+                      />
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>

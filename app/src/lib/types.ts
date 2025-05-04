@@ -17,4 +17,5 @@ export type GenerationConfig = {
   inputFeature: string;
   jsonSchema: string | null;
   numRows: number;
+  prompt: string;
 }
