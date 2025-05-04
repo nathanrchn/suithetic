@@ -10,3 +10,7 @@ export type WalrusService = {
   publisherUrl: string;
   aggregatorUrl: string;
 };
+
+export type GenerationConfig = {
+  
+}
