@@ -1,35 +1,37 @@
 "use client";
 
-import * as React from "react";
+import { getModels } from "@/lib/actions";
 import { useState, useEffect } from "react";
-import { GenerationConfig, HFDataset } from "@/lib/types";
-import DatasetInput from "@/components/dataset-input";
-import DatasetViewer from "@/components/dataset-viewer";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
+import DatasetInput from "@/components/dataset-input";
+import DatasetViewer from "@/components/dataset-viewer";
+import { GenerationConfig, HFDataset } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getModels } from "@/lib/actions";
 
 export default function CreatePage() {
-  const [dataset, setDataset] = useState<HFDataset | null>(null);
-  const [config, setConfig] = useState<GenerationConfig | null>(null);
+  const [data, setData] = useState<any[]>([]);
   const [model, setModel] = useState<string >("");
   const [models, setModels] = useState<any[]>([]);
-  const [inputFeature, setInputFeature] = useState<string>("");
-  const [outputFeature, setOutputFeature] = useState<string>("");
-  const [numRows, setNumRows] = useState<number>(100);
   const [prompt, setPrompt] = useState<string>("");
+  const [numRows, setNumRows] = useState<number>(100);
+  const [features, setFeatures] = useState<string[]>([]);
+  const [inputFeature, setInputFeature] = useState<string>("");
+  const [dataset, setDataset] = useState<HFDataset | null>(null);
+  const [isStructured, setIsStructured] = useState<boolean>(false);
+  const [jsonSchema, setJsonSchema] = useState<string | null>(null);
+  const [config, setConfig] = useState<GenerationConfig | null>(null);
 
-  const handleSubmit = () => {
+  const handleTestGeneration = () => {
     if (!dataset) return;
     
     const generationConfig: GenerationConfig = {
       model,
       inputFeature,
-      outputFeature,
+      jsonSchema,
       numRows
     };
     
@@ -42,14 +44,25 @@ export default function CreatePage() {
     });
   }, []);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!dataset) return;
+      const response = await fetch(`https://datasets-server.huggingface.co/first-rows?dataset=${dataset.path}&config=${dataset.config}&split=${dataset.split}`);
+      const data = await response.json();
+      setData(data.rows.map((row: any) => row));
+      setFeatures(data.features.map((feature: any) => feature.name));
+    }
+    fetchData();
+  }, [dataset]);
+
   return (
     <div className="flex flex-col items-center justify-center py-8 gap-6">
       <div className="text-3xl font-bold">Create a Synthetic Dataset</div>
-      <Card className="w-full max-w-4xl">
-        <CardContent className="p-6">
+      <div className="w-full max-w-4xl">
+        <div className="p-6">
           <div className="space-y-6">
             <div>
-              <h2 className="text-xl font-semibold mb-4">1. Select a Dataset</h2>
+              <h2 className="text-xl font-semibold mb-4">Select a Dataset</h2>
               <DatasetInput 
                 dataset={dataset} 
                 setDataset={setDataset}
@@ -59,14 +72,14 @@ export default function CreatePage() {
             {dataset && (
               <>
                 <div>
-                  <h2 className="text-xl font-semibold mb-4">2. Dataset Preview</h2>
+                  <h2 className="text-xl font-semibold mb-4">Dataset Preview</h2>
                   <div className="border rounded-md p-4 max-h-[400px] overflow-y-auto">
-                    <DatasetViewer dataset={dataset} />
+                    <DatasetViewer features={features} data={data} />
                   </div>
                 </div>
 
                 <div>
-                  <h2 className="text-xl font-semibold mb-4">3. Generation Configuration</h2>
+                  <h2 className="text-xl font-semibold mb-4">Generation Configuration</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="model">Model</Label>
@@ -112,19 +125,33 @@ export default function CreatePage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="outputFeature">Output Feature</Label>
-                      <Input 
-                        id="outputFeature" 
-                        placeholder="Name of the feature to generate" 
-                        value={outputFeature} 
-                        onChange={(e) => setOutputFeature(e.target.value)} 
-                      />
+                      <Label htmlFor="isStructured">Structured Output</Label>
+                      <Switch id="isStructured" checked={isStructured} onCheckedChange={setIsStructured} />
                     </div>
                   </div>
                 </div>
 
+                {isStructured && (
+                  <div>
+                    <h2 className="text-xl font-semibold mb-4">JSON Schema</h2>
+                    <div className="space-y-2">
+                      <Label htmlFor="jsonSchema">Schema Definition</Label>
+                      <Textarea 
+                        id="jsonSchema"
+                        placeholder='Enter JSON schema (e.g., {"type": "object", "properties": {...}})'
+                        className="min-h-[150px] font-mono text-sm"
+                        value={jsonSchema || ""}
+                        onChange={(e) => setJsonSchema(e.target.value)}
+                      />
+                      <p className="text-sm text-gray-500 mt-1">
+                        Define the structure of your output data using JSON Schema format.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div>
-                  <h2 className="text-xl font-semibold mb-4">4. Generation Prompt</h2>
+                  <h2 className="text-xl font-semibold mb-4">Generation Prompt</h2>
                   <Textarea 
                     placeholder="Enter the prompt that will guide the generation task..."
                     className="min-h-[150px]"
@@ -139,16 +166,16 @@ export default function CreatePage() {
                 <Button 
                   className="w-full" 
                   size="lg"
-                  disabled={!model || !inputFeature || !outputFeature || !prompt}
-                  onClick={handleSubmit}
+                  disabled={!model || !inputFeature || !prompt || (isStructured && !jsonSchema)}
+                  onClick={handleTestGeneration}
                 >
-                  Generate Synthetic Data
+                  Test Generation
                 </Button>
               </>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -61,7 +61,11 @@ export default function DatasetInput({
   const getFeaturesAndSetDataset = async (path: string, config: string, split: string) => {
     const response = await fetch(`https://datasets-server.huggingface.co/info?dataset=${path}&config=${config}`)
     const data = await response.json();
-    setDataset({ path, config, split, features: Object.keys(data.dataset_info.features || {}) });
+
+    // For now, we only support string features
+    setDataset({ path, config, split, features: Object.keys(data.dataset_info.features || {}).filter((feature: string) => {
+      return data.dataset_info.features[feature]?.dtype === "string"
+    }) });
   }
 
   useEffect(() => {

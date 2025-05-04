@@ -15,6 +15,6 @@ export type WalrusService = {
 export type GenerationConfig = {
   model: string;
   inputFeature: string;
-  outputFeature: string;
+  jsonSchema: string | null;
   numRows: number;
 }
