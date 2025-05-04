@@ -8,4 +8,13 @@ export async function getRows(dataset: HFDataset, offset: number, length: number
   return data.rows;
 }
 
+export async function getModels() {
+  const response = await fetch("https://api.atoma.network/v1/models", {
+    headers: {
+      "Authorization": `Bearer ${process.env.ATOMA_API_KEY}`
+    }
+  });
+  const data = await response.json();
+  return data.data;
+}
 

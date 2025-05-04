@@ -1,7 +1,8 @@
 export type HFDataset = {
   path: string;
   config: string;
-  split?: string;
+  split: string;
+  features: string[];
 }
 
 export type WalrusService = {
@@ -12,5 +13,8 @@ export type WalrusService = {
 };
 
 export type GenerationConfig = {
-  
+  model: string;
+  inputFeature: string;
+  outputFeature: string;
+  numRows: number;
 }

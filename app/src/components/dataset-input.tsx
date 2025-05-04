@@ -58,6 +58,12 @@ export default function DatasetInput({
     }
   }
 
+  const getFeaturesAndSetDataset = async (path: string, config: string, split: string) => {
+    const response = await fetch(`https://datasets-server.huggingface.co/info?dataset=${path}&config=${config}`)
+    const data = await response.json();
+    setDataset({ path, config, split, features: Object.keys(data.dataset_info.features || {}) });
+  }
+
   useEffect(() => {
     quickSearch(path);
   }, []);
@@ -179,7 +185,7 @@ export default function DatasetInput({
         <DialogFooter>
           <Button type="submit" disabled={!path || !config || !split} onClick={() => {
             setOpen(false);
-            setDataset({ path, config: config || "", split: split || "" });
+            getFeaturesAndSetDataset(path, config || "", split || "");
           }}>
             Save changes
           </Button>

@@ -25,7 +25,7 @@ export default function RootLayout({
             <Header />
           </div>
           <Separator />
-          <main className="min-h-[92vh]">
+          <main className="min-h-[92vh] bg-red-500">
             {children}
           </main>
           <Toaster />
