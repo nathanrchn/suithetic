@@ -8,6 +8,8 @@ import DatasetViewer from "@/components/dataset-viewer";
 export default function CreatePage() {
   const [dataset, setDataset] = useState<HFDataset | null>(null);
 
+  const handleSubmit = () => {}
+
   return (
     <div className="flex flex-col items-center justify-center py-8 gap-6 h-screen">
       <DatasetInput dataset={dataset} setDataset={setDataset} />
