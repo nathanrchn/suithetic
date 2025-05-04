@@ -57,16 +57,13 @@ module suithetic::dataset {
 
     entry public fun purchase_dataset(dataset: address, kiosk: &mut Kiosk, payment: Coin<SUI>, policy: &TransferPolicy<Dataset>, ctx: &mut TxContext) {
         let (mut dataset, request) = kiosk::purchase<Dataset>(kiosk, object::id_from_address(dataset), payment);
-        confirm_request(policy, request);
+
+        transfer_policy::confirm_request<Dataset>(policy, request);
 
         let new_owner = ctx.sender();
 
         dataset.owner = new_owner;
         transfer::public_transfer(dataset, new_owner);
-    }
-
-    public fun confirm_request(policy: &TransferPolicy<Dataset>, request: TransferRequest<Dataset>) {
-        transfer_policy::confirm_request<Dataset>(policy, request);
     }
 
     fun approve_internal(id: vector<u8>, dataset: &Dataset, caller: address): bool {

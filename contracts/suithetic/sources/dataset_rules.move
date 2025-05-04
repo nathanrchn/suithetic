@@ -20,17 +20,15 @@ module suithetic::dataset_rules {
         transfer_policy::add_rule(RoyaltyRule {}, policy, cap, RoyaltyConfig { amount_bp })
     }
 
-    public fun payRoyalty<T: key + store>(dataset: &Dataset, policy: &mut TransferPolicy<T>, request: &mut TransferRequest<T>, payment: &mut Coin<SUI>, ctx: &mut TxContext) {
+    public fun payRoyalty<T: key + store>(dataset: &Dataset, policy: &TransferPolicy<T>, request: &mut TransferRequest<T>, payment: Coin<SUI>) {
         let paid = transfer_policy::paid(request);
 
         let config: &RoyaltyConfig = transfer_policy::get_rule(RoyaltyRule {}, policy);
         let amount = (((paid as u128) * (config.amount_bp as u128) / 10_000) as u64);
 
-        assert!(coin::value(payment) >= amount, EInsufficientAmount);
+        assert!(coin::value(&payment) == amount, EInsufficientAmount);
 
-        let fee = coin::split(payment, amount, ctx);
-        transfer::public_transfer(fee, dataset.get_owner());
-        
+        transfer::public_transfer(payment, dataset.get_owner());
         transfer_policy::add_receipt(RoyaltyRule {}, request)
     }
 }
