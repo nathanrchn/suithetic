@@ -6,12 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useSuiClient } from "@mysten/dapp-kit";
 import { getModels, generate } from "@/lib/actions";
 import { Textarea } from "@/components/ui/textarea";
 import { getWalrusPublisherUrl } from "@/lib/utils";
 import DatasetInput from "@/components/dataset-input";
 import DatasetViewer from "@/components/dataset-viewer";
 import { GenerationConfig, HFDataset } from "@/lib/types";
+import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function CreatePage() {
@@ -27,6 +29,13 @@ export default function CreatePage() {
   const [dataset, setDataset] = useState<HFDataset | null>(null);
   const [isStructured, setIsStructured] = useState<boolean>(false);
   const [jsonSchema, setJsonSchema] = useState<string | null>(null);
+
+  const suiClient = useSuiClient();
+  const sealClient = new SealClient({
+    suiClient,
+    serverObjectIds: getAllowlistedKeyServers("testnet"),
+    verifyKeyServers: false,
+  });
 
   const handleTestGeneration = async () => {
     if (!dataset) return;
