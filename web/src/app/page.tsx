@@ -20,13 +20,13 @@ export default function Home() {
       </header>
 
       <main className="flex-1">
-        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48">
+        <section className="w-full flex items-center min-h-[calc(100vh-4rem)]">
           <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
-                    Generate Synthetic Data on the SUI Blockchain
+                    Generate Synthetic Data for Agents on the SUI Blockchain
                   </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
                     Secure, private, and efficient synthetic data generation for all your needs.
@@ -48,13 +48,78 @@ export default function Home() {
                 </div>
               </div>
               <div className="hidden lg:block">
-                <div className="rounded-lg border bg-card p-8">
-                  <div className="aspect-video overflow-hidden rounded-lg bg-muted">
-                    <div className="flex h-full items-center justify-center text-muted-foreground">
-                      Suithetic Visualization
-                    </div>
-                  </div>
-                </div>
+                {(() => {
+                  // Dimensions and perspective settings
+                  const blockWidth = 200; // Increased width
+                  const blockHeight = 40;  // Increased height (proportionally)
+                  const isoAngle = 30;     // Isometric angle in degrees
+                  const isoSkewY = Math.tan(isoAngle * Math.PI / 180);
+                  const perspectiveDepth = blockWidth * 0.5 * isoSkewY;
+                  const spacing = 20;     // Increased vertical spacing
+                  const strokeWidth = 2;
+                  const paddingRight = -60; // Negative padding to push it further right (partially off-screen)
+                  const paddingTop = 20;   // Padding from the top edge
+
+                  // Calculate base Y positions for each block (bottom starts lowest)
+                  const yBase3 = (blockHeight + spacing) * 2;
+                  const yBase2 = blockHeight + spacing;
+                  const yBase1 = 0;
+
+                  // Calculate total size (needed for positioning)
+                  const totalHeight = (blockHeight + spacing) * 2 + blockHeight + perspectiveDepth;
+                  const totalWidth = blockWidth + (blockWidth * 0.5); // Approximation for iso width
+
+                  // Position near top-right
+                  const translateX = 300 - totalWidth - paddingRight;
+                  const translateY = paddingTop;
+
+                  // Helper function to create points string for polygons
+                  const points = (coords: [number, number][]): string => coords.map((p: [number, number]) => `${p[0]},${p[1]}`).join(' ');
+
+                  // Block definitions (points calculated relative to block's top-left corner)
+                  const createBlock = (yBase: number, topColor: string, sideColor: string) => {
+                    // Top face points (Rhombus)
+                    const topPoints = points([
+                      [0, yBase + blockHeight],
+                      [blockWidth * 0.5, yBase + blockHeight - perspectiveDepth],
+                      [blockWidth, yBase + blockHeight],
+                      [blockWidth * 0.5, yBase + blockHeight + perspectiveDepth]
+                    ]);
+                    // Left side face points (Parallelogram)
+                    const leftSidePoints = points([
+                      [0, yBase + blockHeight],
+                      [blockWidth * 0.5, yBase + blockHeight + perspectiveDepth],
+                      [blockWidth * 0.5, yBase + blockHeight * 2 + perspectiveDepth],
+                      [0, yBase + blockHeight * 2]
+                    ]);
+                     // Right side face points (Parallelogram)
+                    const rightSidePoints = points([
+                      [blockWidth, yBase + blockHeight],
+                      [blockWidth * 0.5, yBase + blockHeight + perspectiveDepth],
+                      [blockWidth * 0.5, yBase + blockHeight * 2 + perspectiveDepth],
+                      [blockWidth, yBase + blockHeight * 2]
+                    ]);
+
+                    return (
+                      <g key={yBase}>
+                        <polygon points={leftSidePoints} fill={sideColor} stroke="black" strokeWidth={strokeWidth} />
+                        <polygon points={rightSidePoints} fill={sideColor} stroke="black" strokeWidth={strokeWidth} />
+                        <polygon points={topPoints} fill={topColor} stroke="black" strokeWidth={strokeWidth} />
+                      </g>
+                    );
+                  };
+
+                  return (
+                    <svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto rounded-lg">
+                      <g transform={`translate(${translateX}, ${translateY})`}>
+                        {/* Draw blocks from bottom to top */}
+                        {createBlock(yBase3, '#ffcdd2' /* Light Red/Coral */, '#ef5350' /* Darker Red/Coral */)}
+                        {createBlock(yBase2, '#b3e5fc' /* Light Blue */, '#4fc3f7' /* Darker Blue */)}
+                        {createBlock(yBase1, '#e0cffc' /* Light Lavender */, '#b39ddb' /* Darker Lavender */)}
+                      </g>
+                    </svg>
+                  );
+                })()}
               </div>
             </div>
           </div>
