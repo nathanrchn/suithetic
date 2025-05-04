@@ -20,3 +20,5 @@ export function getWalrusPublisherUrl(path: string, id: string): string {
   const cleanPath = path.replace(/^\/+/, '').replace(/^v1\//, '');
   return `${service?.publisherUrl}/v1/${cleanPath}`;
 }
+
+

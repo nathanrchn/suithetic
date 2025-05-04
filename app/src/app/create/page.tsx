@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { getModels, generate } from "@/lib/actions";
 import { Textarea } from "@/components/ui/textarea";
+import { getWalrusPublisherUrl } from "@/lib/utils";
 import DatasetInput from "@/components/dataset-input";
 import DatasetViewer from "@/components/dataset-viewer";
 import { GenerationConfig, HFDataset } from "@/lib/types";
@@ -18,8 +19,8 @@ export default function CreatePage() {
   const [model, setModel] = useState<string >("");
   const [models, setModels] = useState<any[]>([]);
   const [prompt, setPrompt] = useState<string>("");
-  const [numRows, setNumRows] = useState<number>(100);
   const [features, setFeatures] = useState<string[]>([]);
+  const [maxTokens, setMaxTokens] = useState<number>(100);
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [inputFeature, setInputFeature] = useState<string>("");
@@ -37,7 +38,7 @@ export default function CreatePage() {
         model,
         inputFeature,
         jsonSchema,
-        numRows,
+        maxTokens,
         prompt
       };
       
@@ -53,13 +54,45 @@ export default function CreatePage() {
       }));
       
       setPreviewData(preview);
-    } catch (error) {
-      console.error("Generation failed:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleGenerateDataset = async () => {
+    if (!dataset) return;
+    
+    setIsLoading(true);
+    
+    try {
+      const generationConfig: GenerationConfig = {
+        model,
+        inputFeature,
+        jsonSchema,
+        maxTokens,
+        prompt
+      };
+
+      const generatedData = await generate(generationConfig, data.map((row) => row.row[inputFeature]));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const storeBlob = (encryptedData: Uint8Array) => {
+    return fetch(`${getWalrusPublisherUrl("/v1/blobs?epochs=1", "walrus")}`, {
+      method: "PUT",
+      body: encryptedData,
+    }).then((response) => {
+      if (response.status === 200) {
+        return response.json().then((info) => {
+          return { info };
+        });
+      } else {
+        throw new Error("Something went wrong when storing the blob!");
+      }
+    });
+  }
 
   useEffect(() => {
     getModels().then((models) => {
@@ -121,13 +154,13 @@ export default function CreatePage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="numRows">Number of Rows</Label>
+                      <Label htmlFor="maxTokens">Max Tokens</Label>
                       <Input 
-                        id="numRows" 
+                        id="maxTokens" 
                         type="number" 
                         min="1"
-                        value={numRows} 
-                        onChange={(e) => setNumRows(parseInt(e.target.value))} 
+                        value={maxTokens} 
+                        onChange={(e) => setMaxTokens(parseInt(e.target.value))} 
                       />
                     </div>
 
@@ -162,7 +195,7 @@ export default function CreatePage() {
                       <Textarea 
                         id="jsonSchema"
                         placeholder='Enter JSON schema (e.g., {"type": "object", "properties": {...}})'
-                        className="min-h-[150px] font-mono text-sm"
+                        className="min-h-[100px] font-mono text-sm"
                         value={jsonSchema || ""}
                         onChange={(e) => setJsonSchema(e.target.value)}
                       />
@@ -177,7 +210,7 @@ export default function CreatePage() {
                   <h2 className="text-xl font-semibold mb-4">Generation Prompt</h2>
                   <Textarea 
                     placeholder="Enter the prompt that will guide the generation task..."
-                    className="min-h-[150px]"
+                    className="min-h-[100px]"
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                   />
@@ -189,6 +222,7 @@ export default function CreatePage() {
                 <Button 
                   className="w-full" 
                   size="lg"
+                  variant="secondary"
                   disabled={!model || !inputFeature || !prompt || (isStructured && !jsonSchema) || isLoading}
                   onClick={handleTestGeneration}
                 >
@@ -202,18 +236,26 @@ export default function CreatePage() {
                   )}
                 </Button>
 
-                {previewData.length > 0 && (
-                  <div className="mt-8">
-                    <h2 className="text-xl font-semibold mb-4">Generation Results</h2>
-                    <div className="border rounded-md p-4 max-h-[400px] overflow-y-auto">
-                      <DatasetViewer 
-                        features={[inputFeature, "generated_output"]} 
-                        data={previewData}
-                        maxLength={250}
-                      />
-                    </div>
+                <div className="mt-8">
+                  <h2 className="text-xl font-semibold mb-4">Generation Results</h2>
+                  <div className="border rounded-md p-4 max-h-[400px] overflow-y-auto">
+                    <DatasetViewer 
+                      features={[inputFeature, "generated_output"]}
+                      data={previewData}
+                      maxLength={250}
+                    />
                   </div>
-                )}
+                </div>
+
+                <Button 
+                  className="w-full" 
+                  size="lg"
+                  variant="default"
+                  disabled={!model || !inputFeature || !prompt || (isStructured && !jsonSchema) || isLoading}
+                  onClick={handleGenerateDataset}
+                >
+                  Generate Dataset
+                </Button>
               </>
             )}
           </div>

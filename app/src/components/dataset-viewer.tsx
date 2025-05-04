@@ -11,7 +11,7 @@ export default function DatasetViewer({
   data: any[];
   maxLength?: number;
 }) {
-  return data.length > 0 && features.length > 0 && (
+  return features.length > 0 && (
     <div className="space-y-4">
       <Table>
         <TableHeader>

@@ -26,19 +26,24 @@ export async function getModels() {
 }
 
 export async function generate(config: GenerationConfig, data: string[]) {
+  let tokens = 0;
   const outputs = [];
   if (config.jsonSchema) {
     throw new Error("Not implemented");
   } else {
     for (const row of data) {
-      console.log(row);
-      const { text } = await generateText({
+      const { text, usage } = await generateText({
         model: atoma(config.model),
         prompt: config.prompt.replace("{input}", row),
         maxTokens: 32,
       });
-      console.log(text);
       outputs.push(text);
+
+      tokens += usage.totalTokens;
+
+      if (tokens > config.maxTokens) {
+        break;
+      }
     }
   }
 

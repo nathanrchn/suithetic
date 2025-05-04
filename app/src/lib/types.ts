@@ -16,6 +16,6 @@ export type GenerationConfig = {
   model: string;
   inputFeature: string;
   jsonSchema: string | null;
-  numRows: number;
+  maxTokens: number;
   prompt: string;
 }
