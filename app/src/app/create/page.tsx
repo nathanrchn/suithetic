@@ -245,16 +245,18 @@ export default function CreatePage() {
                   )}
                 </Button>
 
-                <div className="mt-8">
-                  <h2 className="text-xl font-semibold mb-4">Generation Results</h2>
-                  <div className="border rounded-md p-4 max-h-[400px] overflow-y-auto">
-                    <DatasetViewer 
-                      features={[inputFeature, "generated_output"]}
-                      data={previewData}
-                      maxLength={250}
-                    />
+                {inputFeature && (
+                  <div className="mt-8">
+                    <h2 className="text-xl font-semibold mb-4">Generation Results</h2>
+                    <div className="border rounded-md p-4 max-h-[400px] overflow-y-auto">
+                      <DatasetViewer 
+                        features={[inputFeature, "generated_output"]}
+                        data={previewData}
+                        maxLength={250}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <Button 
                   className="w-full" 
