@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Title from "@/components/title";
 
 export default function Home() {
   const appLink = "https://app.suithetic.com";
@@ -25,9 +26,7 @@ export default function Home() {
             <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
-                  <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
-                    Generate Synthetic Data for Agents on the SUI Blockchain
-                  </h1>
+                  <Title />
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
                     Secure, private, and efficient synthetic data generation for all your needs.
                   </p>
@@ -112,7 +111,6 @@ export default function Home() {
                   return (
                     <svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto rounded-lg">
                       <g transform={`translate(${translateX}, ${translateY})`}>
-                        {/* Draw blocks from bottom to top */}
                         {createBlock(yBase3, '#ffcdd2' /* Light Red/Coral */, '#ef5350' /* Darker Red/Coral */)}
                         {createBlock(yBase2, '#b3e5fc' /* Light Blue */, '#4fc3f7' /* Darker Blue */)}
                         {createBlock(yBase1, '#e0cffc' /* Light Lavender */, '#b39ddb' /* Darker Lavender */)}
