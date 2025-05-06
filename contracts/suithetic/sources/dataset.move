@@ -1,12 +1,22 @@
 module suithetic::dataset {
     use sui::sui::SUI;
-    use sui::coin::Coin;
     use sui::package::claim;
     use std::string::String;
-    use suithetic::dataset_rules;
+    use sui::coin::{Self, Coin};
     use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
     use sui::transfer_policy::{Self, TransferPolicy, TransferRequest};
+    
     const ENoAccess: u64 = 0;
+    const EInvalidDataset: u64 = 1;
+    const EInsufficientAmount: u64 = 2;
+
+    const MAX_BPS: u16 = 10_000;
+
+    public struct RoyaltyRule has drop {}
+    
+    public struct RoyaltyConfig has store, drop {
+        amount_bp: u16,
+    }
 
     public struct DatasetMetadata has store {
         name: String,
@@ -28,7 +38,7 @@ module suithetic::dataset {
         let publisher = claim(otw, ctx);
 
         let (mut dataset_policy, dataset_policy_cap) = transfer_policy::new<Dataset>(&publisher, ctx);
-        dataset_rules::addRoyaltyRule<Dataset>(&mut dataset_policy, &dataset_policy_cap, 100);
+        transfer_policy::add_rule(RoyaltyRule {}, &mut dataset_policy, &dataset_policy_cap, RoyaltyConfig { amount_bp: 100 });
 
         transfer::public_share_object(dataset_policy);
         transfer::public_transfer(dataset_policy_cap, ctx.sender());
@@ -66,6 +76,20 @@ module suithetic::dataset {
         transfer::public_transfer(dataset, new_owner);
     }
 
+    public fun payRoyalty(dataset: &Dataset, policy: &TransferPolicy<Dataset>, request: &mut TransferRequest<Dataset>, payment: Coin<SUI>) {
+        assert!(object::id(dataset) == request.item(), EInvalidDataset);
+
+        let paid = transfer_policy::paid(request);
+
+        let config: &RoyaltyConfig = transfer_policy::get_rule(RoyaltyRule {}, policy);
+        let amount = (((paid as u128) * (config.amount_bp as u128) / 10_000) as u64);
+
+        assert!(coin::value(&payment) == amount, EInsufficientAmount);
+
+        transfer::public_transfer(payment, dataset.owner);
+        transfer_policy::add_receipt(RoyaltyRule {}, request)
+    }
+
     fun approve_internal(id: vector<u8>, dataset: &Dataset, caller: address): bool {
         if (!is_prefix(dataset.id.to_bytes(), id)) {
             return false
@@ -76,10 +100,6 @@ module suithetic::dataset {
 
     entry fun seal_approve(id: vector<u8>, dataset: &Dataset, ctx: &TxContext) {
         assert!(approve_internal(id, dataset, ctx.sender()), ENoAccess);
-    }
-
-    public fun get_owner(dataset: &Dataset): address {
-        dataset.owner
     }
 
     fun is_prefix(prefix: vector<u8>, word: vector<u8>): bool {
