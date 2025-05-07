@@ -4,8 +4,8 @@ module suithetic::dataset {
     use sui::package::claim;
     use std::string::String;
     use sui::coin::{Self, Coin};
-    use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
     use suithetic::suithetic::{Self, Request};
+    use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
     use sui::transfer_policy::{Self, TransferPolicy, TransferRequest};
     
     const ENoAccess: u64 = 0;
