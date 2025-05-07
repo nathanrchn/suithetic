@@ -5,8 +5,8 @@ import { Button } from "./ui/button";
 import { useTheme } from "next-themes";
 import { Sun, Moon } from "lucide-react";
 import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
 import { ConnectButton } from "@mysten/dapp-kit";
+import { usePathname, useRouter } from "next/navigation";
 
 export default function Header() {
   const router = useRouter();

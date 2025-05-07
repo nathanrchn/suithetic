@@ -4,8 +4,8 @@ module suithetic::dataset {
     use sui::package::claim;
     use std::string::String;
     use sui::coin::{Self, Coin};
-    use suithetic::suithetic::{Self, Request};
     use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
+    use suithetic::suithetic::{Self, Request};
     use sui::transfer_policy::{Self, TransferPolicy, TransferRequest};
     
     const ENoAccess: u64 = 0;
@@ -21,6 +21,7 @@ module suithetic::dataset {
     public struct DatasetMetadata has store {
         name: String,
         num_rows: u64,
+        num_tokens: u64,
         version: u64,
     }
 
@@ -32,13 +33,13 @@ module suithetic::dataset {
         metadata: DatasetMetadata,
     }
 
-    public struct DatasetListed has copy, drop {
+    public struct DatasetListedEvent has copy, drop {
         dataset: ID,
         kiosk: ID,
         version: u64,
     }
 
-    public struct DatasetPurchased has copy, drop {
+    public struct DatasetPurchasedEvent has copy, drop {
         dataset: ID,
         version: u64,
     }
@@ -58,7 +59,7 @@ module suithetic::dataset {
         transfer::public_transfer(publisher, ctx.sender());
     }
 
-    public fun create_dataset(blob_id: String, name: String, num_rows: u64, ctx: &mut TxContext): (Dataset, Request) {
+    public fun create_dataset(blob_id: String, name: String, num_rows: u64, num_tokens: u64, ctx: &mut TxContext): (Dataset, Request) {
         let dataset = Dataset {
             id: object::new(ctx),
             owner: ctx.sender(),
@@ -67,6 +68,7 @@ module suithetic::dataset {
             metadata: DatasetMetadata {
                 name,
                 num_rows,
+                num_tokens,
                 version: 0,
             },
         };
@@ -80,7 +82,7 @@ module suithetic::dataset {
 
         kiosk::place_and_list(kiosk, cap, dataset, price);
 
-        event::emit(DatasetListed {
+        event::emit(DatasetListedEvent {
             dataset: dataset_id,
             kiosk: object::id(kiosk),
             version: dataset_version,
@@ -94,7 +96,7 @@ module suithetic::dataset {
 
         let new_owner = ctx.sender();
 
-        event::emit(DatasetPurchased {
+        event::emit(DatasetPurchasedEvent {
             dataset: object::id(&dataset),
             version: dataset.metadata.version,
         });

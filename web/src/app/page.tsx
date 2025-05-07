@@ -9,7 +9,7 @@ export default function Home() {
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">Suithetic</h1>
+            <h1 className="text-2xl font-bold tracking-tight"><Link href="/">Suithetic</Link></h1>
           </div>
           <Link 
             href={appLink} 
