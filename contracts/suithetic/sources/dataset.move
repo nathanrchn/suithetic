@@ -1,4 +1,5 @@
 module suithetic::dataset {
+    use sui::event;
     use sui::sui::SUI;
     use sui::package::claim;
     use std::string::String;
@@ -10,8 +11,6 @@ module suithetic::dataset {
     const EInvalidDataset: u64 = 1;
     const EInsufficientAmount: u64 = 2;
 
-    const MAX_BPS: u16 = 10_000;
-
     public struct RoyaltyRule has drop {}
     
     public struct RoyaltyConfig has store, drop {
@@ -21,6 +20,7 @@ module suithetic::dataset {
     public struct DatasetMetadata has store {
         name: String,
         num_rows: u64,
+        version: u64,
     }
 
     public struct Dataset has key, store {
@@ -29,6 +29,17 @@ module suithetic::dataset {
         blob_id: String,
         creator: address,
         metadata: DatasetMetadata,
+    }
+
+    public struct DatasetListed has copy, drop {
+        dataset: ID,
+        kiosk: ID,
+        version: u64,
+    }
+
+    public struct DatasetPurchased has copy, drop {
+        dataset: ID,
+        version: u64,
     }
 
     public struct DATASET has drop {}
@@ -55,14 +66,24 @@ module suithetic::dataset {
             metadata: DatasetMetadata {
                 name,
                 num_rows,
+                version: 0,
             },
         };
 
         transfer::public_transfer(dataset, ctx.sender());
     }
 
-    entry public fun publish_dataset(dataset: Dataset, price: u64, kiosk: &mut Kiosk, cap: &KioskOwnerCap) {
-        kiosk::place_and_list(kiosk, cap, dataset, price)
+    entry public fun place_and_list_dataset(dataset: Dataset, price: u64, kiosk: &mut Kiosk, cap: &KioskOwnerCap) {
+        let dataset_id = object::id(&dataset);
+        let dataset_version = dataset.metadata.version;
+
+        kiosk::place_and_list(kiosk, cap, dataset, price);
+
+        event::emit(DatasetListed {
+            dataset: dataset_id,
+            kiosk: object::id(kiosk),
+            version: dataset_version,
+        });
     }
 
     entry public fun purchase_dataset(dataset: address, kiosk: &mut Kiosk, payment: Coin<SUI>, policy: &TransferPolicy<Dataset>, ctx: &mut TxContext) {
@@ -72,7 +93,13 @@ module suithetic::dataset {
 
         let new_owner = ctx.sender();
 
+        event::emit(DatasetPurchased {
+            dataset: object::id(&dataset),
+            version: dataset.metadata.version,
+        });
+
         dataset.owner = new_owner;
+        dataset.metadata.version = dataset.metadata.version + 1;
         transfer::public_transfer(dataset, new_owner);
     }
 
