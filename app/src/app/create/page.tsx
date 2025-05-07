@@ -188,7 +188,7 @@ export default function CreatePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="model">Model</Label>
-                    <Select value={model} onValueChange={setModel}>
+                    <Select value={model} onValueChange={setModel} disabled={models.length === 0}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a model" />
                       </SelectTrigger>

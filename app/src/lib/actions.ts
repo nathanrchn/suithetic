@@ -21,6 +21,11 @@ export async function getModels() {
       "Authorization": `Bearer ${process.env.ATOMA_API_KEY}`
     }
   });
+
+  if (!response.ok) {
+    return [];
+  }
+
   const data = await response.json();
   return data.data;
 }
@@ -56,6 +61,7 @@ type SyntheticDataResultItem = {
   usage?: { totalTokens: number; [key: string]: any };
   input?: string;
   error?: string;
+  signature?: string;
 };
 
 export async function generateSyntheticData(
@@ -70,7 +76,81 @@ export async function generateSyntheticData(
 ): Promise<SyntheticDataResultItem[]> {
   console.log("[generateSyntheticData ACTION] Entered with dataset:", JSON.stringify(dataset), "config:", JSON.stringify(config), "options:", JSON.stringify(options));
   
-  const allResults: SyntheticDataResultItem[] = []; // Array to store all results
+  const allResults: SyntheticDataResultItem[] = [];
+
+  const signatureMap = new Map<string, string>();
+
+  const customFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const response = await fetch(input, init);
+
+    let urlString: string;
+    if (typeof input === 'string') {
+      urlString = input;
+    } else if (input instanceof URL) {
+      urlString = input.href;
+    } else {
+      urlString = input.url;
+    }
+
+    if (response.body && init?.method === 'POST' && urlString.includes('atoma.network/v1')) {
+      const [streamForSdk, streamForSignature] = response.body.tee();
+
+      (async () => {
+        const reader = streamForSignature.getReader();
+        const decoder = new TextDecoder();
+        let currentBuffer = "";
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              break;
+            }
+            currentBuffer += decoder.decode(value, { stream: true });
+
+            let newlineIndex;
+            while ((newlineIndex = currentBuffer.indexOf('\n')) >= 0) {
+              const line = currentBuffer.substring(0, newlineIndex).trim();
+              currentBuffer = currentBuffer.substring(newlineIndex + 1);
+
+              if (line.startsWith('data: ')) {
+                const jsonData = line.substring('data: '.length).trim();
+                if (jsonData && jsonData.toLowerCase() !== '[done]') {
+                  try {
+                    const chunk = JSON.parse(jsonData);
+                    if (chunk.id && typeof chunk.signature === 'string') {
+                      signatureMap.set(chunk.id, chunk.signature);
+                      console.log(`[customFetch] Signature for ID ${chunk.id} stored.`);
+                    }
+                  } catch (e) {
+                    console.warn('[customFetch] Failed to parse JSON chunk:', jsonData, e);
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[customFetch] Error processing stream for signature:', error);
+          if (reader) {
+            reader.cancel().catch(cancelError => console.error('[customFetch] Error cancelling reader:', cancelError));
+          }
+        }
+      })();
+
+      return new Response(streamForSdk, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    }
+
+    return response;
+  };
+
+  const atomaWithSignature = createOpenAI({
+    apiKey: process.env.ATOMA_API_KEY,
+    baseURL: "https://api.atoma.network/v1",
+    fetch: customFetch
+  });
 
   try {
     const BATCH_SIZE = options?.batchSize ?? 10;
@@ -141,8 +221,8 @@ export async function generateSyntheticData(
               break;
             }
 
-            const { textStream, usage: usagePromise } = await streamText({
-              model: atoma(config.model),
+            const { textStream, usage: usagePromise, response } = await streamText({
+              model: atomaWithSignature(config.model),
               prompt: config.prompt.replace("{input}", inputText),
               maxTokens: currentCallMaxTokens,
             });
@@ -160,10 +240,10 @@ export async function generateSyntheticData(
               let winnerResult;
 
               try {
-                  winnerResult = await Promise.race([
-                      iteratorResultPromise,
-                      timeoutPromise
-                  ]);
+                winnerResult = await Promise.race([
+                  iteratorResultPromise,
+                  timeoutPromise
+                ]);
               } catch (e: any) { 
                   if (typeof iterator.return === 'function') {
                       await iterator.return(); 
@@ -174,27 +254,29 @@ export async function generateSyntheticData(
               const currentIteratorResult = winnerResult as IteratorResult<string, any>;
 
               if (currentIteratorResult.done) {
-                  loop = false;
+                loop = false;
               } else {
-                  accumulatedText += currentIteratorResult.value;
+                accumulatedText += currentIteratorResult.value;
               }
             }
 
             const finalUsage = await usagePromise;
+            const responseId = (await response).id;
+            const signature = signatureMap.get(responseId);
 
             if (totalTokensUsed + finalUsage.totalTokens > config.maxTokens && totalTokensUsed > 0) {
-               if (accumulatedText) { 
-                   allResults.push({ success: true, data: accumulatedText, usage: finalUsage, input: inputText });
-               }
-               totalTokensUsed += finalUsage.totalTokens;
-               console.log("[generateSyntheticData ACTION] Max token limit reached after processing a row. Stopping further generation.");
-               continueFetching = false;
-               successForRow = true; 
-               break; 
+              if (accumulatedText) { 
+                allResults.push({ success: true, data: accumulatedText, usage: finalUsage, input: inputText, signature });
+              }
+              totalTokensUsed += finalUsage.totalTokens;
+              console.log("[generateSyntheticData ACTION] Max token limit reached after processing a row. Stopping further generation.");
+              continueFetching = false;
+              successForRow = true; 
+              break; 
             }
 
             totalTokensUsed += finalUsage.totalTokens;
-            allResults.push({ success: true, data: accumulatedText, usage: finalUsage, input: inputText });
+            allResults.push({ success: true, data: accumulatedText, usage: finalUsage, input: inputText, signature });
             successForRow = true;
 
           } catch (error: any) {
@@ -203,7 +285,6 @@ export async function generateSyntheticData(
             if (attempt >= MAX_RETRIES) {
               allResults.push({ success: false, error: `Failed after ${MAX_RETRIES} attempts: ${error.message}`, input: inputText });
             }
-            // No explicit backoff here as we are not retrying the whole batch, but individual items
           }
         } 
         if (!continueFetching) break; 
