@@ -4,6 +4,7 @@ module suithetic::dataset {
     use sui::package::claim;
     use std::string::String;
     use sui::coin::{Self, Coin};
+    use suithetic::suithetic::{Self, Request};
     use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
     use sui::transfer_policy::{Self, TransferPolicy, TransferRequest};
     
@@ -57,7 +58,7 @@ module suithetic::dataset {
         transfer::public_transfer(publisher, ctx.sender());
     }
 
-    entry public fun create_dataset(blob_id: String, name: String, num_rows: u64, ctx: &mut TxContext) {
+    public fun create_dataset(blob_id: String, name: String, num_rows: u64, ctx: &mut TxContext): (Dataset, Request) {
         let dataset = Dataset {
             id: object::new(ctx),
             owner: ctx.sender(),
@@ -70,7 +71,7 @@ module suithetic::dataset {
             },
         };
 
-        transfer::public_transfer(dataset, ctx.sender());
+        (dataset, suithetic::new_request())
     }
 
     entry public fun place_and_list_dataset(dataset: Dataset, price: u64, kiosk: &mut Kiosk, cap: &KioskOwnerCap) {
