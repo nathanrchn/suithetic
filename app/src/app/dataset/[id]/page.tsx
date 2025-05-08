@@ -1,39 +1,44 @@
 "use client";
 
+import { getDataset } from "@/lib/actions";
 import { DatasetObject } from "@/lib/types";
 import { fromHex } from "@mysten/sui/utils";
-import { useSuiClient } from "@mysten/dapp-kit";
 import { use, useState, useEffect } from "react";
-import { getBlob, getDataset } from "@/lib/actions";
+import { getWalrusPublisherUrl } from "@/lib/utils";
 import { TESTNET_PACKAGE_ID } from "@/lib/constants";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { EncryptedObject, SealClient } from "@mysten/seal";
 import { getAllowlistedKeyServers, SessionKey } from "@mysten/seal";
+import { useSignPersonalMessage, useSuiClient } from "@mysten/dapp-kit";
 
 export default function DatasetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [dataset, setDataset] = useState<DatasetObject | null>(null);
+  const [decryptedBytes, setDecryptedBytes] = useState<Uint8Array | null>(null);
 
   const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();
   const sealClient = new SealClient({
     suiClient,
-    serverObjectIds: getAllowlistedKeyServers("testnet"),
+    serverObjectIds: [getAllowlistedKeyServers("testnet")[0]],
     verifyKeyServers: false,
   });
 
-  const decryptBlob = async (data: Uint8Array, dataset: DatasetObject): Promise<Uint8Array> => {
+  const { mutate: signPersonalMessage } = useSignPersonalMessage();
+
+  const getBlob = async (id: string) => {
+    return fetch(`${getWalrusPublisherUrl(`/v1/blobs/${id}`, "service1")}`)
+      .then((res) => res.arrayBuffer())
+      .then((buffer) => new Uint8Array(buffer));
+  }
+
+  const decryptBlob = async (data: Uint8Array, dataset: DatasetObject) => {
     const tx = new Transaction();
 
+    console.log(data);
+
     const id = EncryptedObject.parse(data).id;
-
-    tx.moveCall({
-      target: `${TESTNET_PACKAGE_ID}::dataset::seal_approve`,
-      arguments: [tx.pure.vector("u8", fromHex(id)), tx.object(dataset!.id)],
-    });
-
-    const txBytes = await tx.build({ client: suiClient, onlyTransactionKind: true });
 
     const sessionKey = new SessionKey({
       address: currentAccount!.address,
@@ -41,16 +46,37 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
       ttlMin: 10,
     });
 
-    console.log(txBytes);
+    signPersonalMessage({ message: sessionKey.getPersonalMessage() }, { onSuccess: async (result) => {
+      await sessionKey.setPersonalMessageSignature(result.signature);
 
-    const decryptedBytes = await sealClient.decrypt({
-      data,
-      sessionKey,
-      txBytes,
-    });
+      tx.moveCall({
+        target: `${TESTNET_PACKAGE_ID}::dataset::seal_approve`,
+        arguments: [tx.pure.vector("u8", fromHex(id)), tx.object(dataset!.id)],
+      });
+  
+      const txBytes = await tx.build({ client: suiClient, onlyTransactionKind: true });
 
-    return decryptedBytes;
-  }
+      await sealClient.fetchKeys({
+        ids: [id],
+        txBytes,
+        sessionKey,
+        threshold: 1,
+      });
+
+      const keyServers = await sealClient.getKeyServers();
+      console.log(keyServers);
+  
+      const decryptedBytes = await sealClient.decrypt({
+        data,
+        sessionKey,
+        txBytes,
+      });
+
+      console.log(decryptedBytes);
+
+      setDecryptedBytes(decryptedBytes);
+    }});
+  };
 
   useEffect(() => {
     getDataset(id).then((dataset) => {
@@ -64,10 +90,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
     }
 
     getBlob(dataset!.blobId).then((blob) => {
-      console.log(blob);
-      decryptBlob(blob, dataset).then((decryptedBytes) => {
-        console.log(decryptedBytes);
-      });
+      decryptBlob(blob, dataset);
     });
   }, [dataset, currentAccount]);
 
