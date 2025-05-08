@@ -7,17 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { getWalrusPublisherUrl } from "@/lib/utils";
 import DatasetInput from "@/components/dataset-input";
 import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import { fromHex, MIST_PER_SUI, toHex } from "@mysten/sui/utils";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
-import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
-import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT } from "@/lib/constants";
-import { getModels, generatePreview, generateSyntheticData, getPrice } from "@/lib/actions";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
+import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT, UNITS_PER_USDC } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
+import { getModels, generatePreview, generateSyntheticData, getPrice, storeBlob } from "@/lib/actions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -36,10 +35,10 @@ export default function CreatePage() {
   const [isStructured, setIsStructured] = useState<boolean>(false);
   const [jsonSchema, setJsonSchema] = useState<string | null>(null);
   const [previewAttempts, setPreviewAttempts] = useState<number>(0);
-  const [datasetObject, setDatasetObject] = useState<any | null>(null);
   const [datasetBlobId, setDatasetBlobId] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
   const [isStoringDataset, setIsStoringDataset] = useState<boolean>(false);
+  const [datasetObjectId, setDatasetObjectId] = useState<string | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState<boolean>(false);
   const [isDatasetGenerationLoading, setIsDatasetGenerationLoading] = useState<boolean>(false);
   const [syntheticDatasetOutput, setSyntheticDatasetOutput] = useState<SyntheticDataResultItem[]>([]);
@@ -49,6 +48,7 @@ export default function CreatePage() {
   const MAX_PREVIEW_ATTEMPTS = 5;
 
   const suiClient = useSuiClient();
+  const currentAccount = useCurrentAccount();
   const sealClient = new SealClient({
     suiClient,
     serverObjectIds: getAllowlistedKeyServers("testnet"),
@@ -108,7 +108,7 @@ export default function CreatePage() {
     const suiPrice = await getPrice();
 
     const megaTokens = maxTokens / 1_000_000;
-    const roundedGenerationSuiAmount = Math.ceil(suiPrice * model!.price_per_one_million_compute_units * megaTokens * Number(MIST_PER_SUI));
+    const roundedGenerationSuiAmount = Math.ceil(suiPrice * (model!.price_per_one_million_compute_units / UNITS_PER_USDC) * megaTokens * Number(MIST_PER_SUI));
 
     const tx = new Transaction();
     const [generationCoin] = tx.splitCoins(tx.gas, [roundedGenerationSuiAmount]);
@@ -121,11 +121,15 @@ export default function CreatePage() {
       ],
     });
 
-    setDatasetObject(tx.moveCall({
+    let datasetObject = tx.moveCall({
       target: `${TESTNET_PACKAGE_ID}::dataset::mint_dataset`,
-    }));
+    });
 
-    signAndExecuteTransaction({ transaction: tx }, { onSuccess: async () => {
+    tx.transferObjects([datasetObject], tx.pure.address(currentAccount!.address!));
+
+    signAndExecuteTransaction({ transaction: tx }, { onSuccess: async (result) => {
+      setDatasetObjectId(result.effects!.created![0].reference.objectId!);
+
       setIsDatasetGenerationLoading(true);
     
       try {
@@ -192,7 +196,7 @@ export default function CreatePage() {
 
   const encryptBlob = async (data: Uint8Array): Promise<Uint8Array> => {
     const nonce = crypto.getRandomValues(new Uint8Array(5));
-    const policyObjectBytes = fromHex(datasetObject);
+    const policyObjectBytes = fromHex(datasetObjectId!);
     const id = toHex(new Uint8Array([...policyObjectBytes, ...nonce]));
     const { encryptedObject: encryptedBytes } = await sealClient.encrypt({
       threshold: 2,
@@ -201,21 +205,6 @@ export default function CreatePage() {
       data
     })
     return encryptedBytes;
-  }
-
-  const storeBlob = async (encryptedData: Uint8Array, numEpochs: number) => {
-    return fetch(`${getWalrusPublisherUrl(`/v1/blobs?epochs=${numEpochs}`, "walrus")}`, {
-      method: "PUT",
-      body: encryptedData,
-    }).then((response) => {
-      if (response.status === 200) {
-        return response.json().then((info) => {
-          return { info };
-        });
-      } else {
-        throw new Error("Something went wrong when storing the blob!");
-      }
-    });
   }
 
   const encryptAndStoreDataset = async (dataset: SyntheticDataResultItem[], numEpochs: number, encrypt: boolean) => {
@@ -255,9 +244,9 @@ export default function CreatePage() {
     setIsStoringDataset(true);
     try {
       console.log(`Encrypting and storing dataset for ${numEpochs} epochs.`);
-      const info = await encryptAndStoreDataset(syntheticDatasetOutput, numEpochs, true);
-      setDatasetBlobId(info.info.newlyCreated.blobObject.blobId);
-      console.log("Dataset stored successfully:", info);
+      const blobId = await encryptAndStoreDataset(syntheticDatasetOutput, numEpochs, true);
+      setDatasetBlobId(blobId);
+      console.log("Dataset stored successfully:", blobId);
       setUploadCompleted(true);
     } catch (error) {
       console.error("Failed to encrypt and store dataset:", error);
@@ -292,14 +281,16 @@ export default function CreatePage() {
       tx.moveCall({
         target: `${TESTNET_PACKAGE_ID}::dataset::lock_dataset`,
         arguments: [
-          tx.object(datasetObject),
-          tx.pure.string(datasetBlobId),
+          tx.object(datasetObjectId!),
+          tx.pure.string(datasetBlobId!),
           tx.pure.string(datasetName),
           tx.pure.u64(numRows),
           tx.pure.u64(numTokens),
           tx.pure.vector("string", syntheticDatasetOutput.map((item) => item.signature!))
         ]
       })
+
+      await signAndExecuteTransaction({ transaction: tx });
 
       handleCancelDialog();
     } catch (error) {
