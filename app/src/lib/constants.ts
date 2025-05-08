@@ -38,3 +38,5 @@ export const WALRUS_SERVICES: WalrusService[] = [
     aggregatorUrl: "/aggregator6",
   },
 ];
+
+export const TESTNET_PACKAGE_ID = ""

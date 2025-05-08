@@ -6,12 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useSuiClient } from "@mysten/dapp-kit";
+import { fromHex, toHex } from "@mysten/sui/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { getWalrusPublisherUrl } from "@/lib/utils";
+import { TESTNET_PACKAGE_ID } from "@/lib/constants";
 import DatasetInput from "@/components/dataset-input";
 import DatasetViewer from "@/components/dataset-viewer";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
+import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import { getModels, generatePreview, generateSyntheticData } from "@/lib/actions";
 import { GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +47,18 @@ export default function CreatePage() {
     suiClient,
     serverObjectIds: getAllowlistedKeyServers("testnet"),
     verifyKeyServers: false,
+  });
+
+  const { mutate: signAndExecute } = useSignAndExecuteTransaction({
+    execute: async ({ bytes, signature }) =>
+      await suiClient.executeTransactionBlock({
+        transactionBlock: bytes,
+        signature,
+        options: {
+          showRawEffects: true,
+          showEffects: true,
+        },
+      }),
   });
 
   const handleTestGeneration = async () => {
@@ -150,8 +164,17 @@ export default function CreatePage() {
   }
 
   const encryptBlob = async (data: Uint8Array, numEpochs: number): Promise<Uint8Array> => {
-    // this function will be properly defined.
-    return new Uint8Array();
+    // const nonce = crypto.getRandomValues(new Uint8Array(5));
+    // const policyObjectBytes = fromHex(policyObject);
+    // const id = toHex(new Uint8Array([...policyObjectBytes, ...nonce]));
+    // const { encryptedObject: encryptedBytes } = await sealClient.encrypt({
+    //   threshold: 2,
+    //   packageId: TESTNET_PACKAGE_ID,
+    //   id,
+    //   data
+    // })
+    // return encryptedBytes;
+    return data;
   }
 
   const storeBlob = async (encryptedData: Uint8Array, numEpochs: number) => {
@@ -169,10 +192,23 @@ export default function CreatePage() {
     });
   }
 
-  const encryptAndStoreDataset = async (dataset: any[], numEpochs: number) => {
+  const encryptAndStoreDataset = async (dataset: any[], numEpochs: number, encrypt: boolean = true) => {
     const data = sanitizeDataset(dataset);
-    const encryptedData = await encryptBlob(data, numEpochs);
-    return await storeBlob(encryptedData, numEpochs);
+    if (encrypt) {
+      const encryptedData = await encryptBlob(data, numEpochs);
+      return await storeBlob(encryptedData, numEpochs);
+    } else {
+      return await storeBlob(data, numEpochs);
+    }
+  }
+
+  const handleMaxTokensChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value, 10);
+    if (!isNaN(value) && value > 0) {
+      setMaxTokens(value);
+    } else if (e.target.value === "") {
+      setMaxTokens(100);
+    }
   }
 
   const handleEpochsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -201,7 +237,7 @@ export default function CreatePage() {
   };
 
   const mintDataset = async () => {
-    
+
   }
 
   useEffect(() => {
@@ -284,7 +320,7 @@ export default function CreatePage() {
                       type="number" 
                       min="1"
                       value={maxTokens} 
-                      onChange={(e) => setMaxTokens(parseInt(e.target.value))} 
+                      onChange={handleMaxTokensChange} 
                     />
                   </div>
 
