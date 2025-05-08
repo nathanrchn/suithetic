@@ -25,6 +25,7 @@ module suithetic::dataset {
         name: Option<String>,
         num_rows: Option<u64>,
         num_tokens: Option<u64>,
+        description: Option<String>,
     }
 
     public struct Dataset has key, store {
@@ -74,6 +75,7 @@ module suithetic::dataset {
                 name: option::none(),
                 num_rows: option::none(),
                 num_tokens: option::none(),
+                description: option::none(),
             },
             signatures: option::none(),
         };
@@ -81,13 +83,14 @@ module suithetic::dataset {
         dataset
     }
 
-    public fun lock_dataset(dataset: &mut Dataset, blob_id: String, name: String, num_rows: u64, num_tokens: u64, signatures: vector<String>) {
+    public fun lock_dataset(dataset: &mut Dataset, blob_id: String, name: String, num_rows: u64, num_tokens: u64, description: String, signatures: vector<String>) {
         assert!(dataset.version == 0, EAlreadyLockedDataset);
 
         dataset.blob_id = option::some(blob_id);
         dataset.metadata.name = option::some(name);
         dataset.metadata.num_rows = option::some(num_rows);
         dataset.metadata.num_tokens = option::some(num_tokens);
+        dataset.metadata.description = option::some(description);
         dataset.signatures = option::some(signatures);
 
         dataset.version = dataset.version + 1;
@@ -124,6 +127,14 @@ module suithetic::dataset {
         assert!(num_tokens > 0, EMetadataNotSet);
 
         num_tokens
+    }
+
+    entry public fun get_dataset_description(dataset: &Dataset): String {
+        let description = dataset.metadata.description.get_with_default(string::utf8(vector[]));
+
+        assert!(!description.is_empty(), EMetadataNotSet);
+
+        description
     }
 
     entry public fun place_and_list_dataset(dataset: Dataset, price: u64, kiosk: &mut Kiosk, cap: &KioskOwnerCap) {
