@@ -11,6 +11,9 @@ import { EncryptedObject, SealClient } from "@mysten/seal";
 import { getAllowlistedKeyServers, SessionKey } from "@mysten/seal";
 import { useSignPersonalMessage, useSuiClient } from "@mysten/dapp-kit";
 import DatasetViewer from "@/components/dataset-viewer";
+import Avatar from "@/components/avatar";
+import { getExplorerUrl } from "@/lib/utils";
+import Link from 'next/link';
 
 export default function DatasetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -34,6 +37,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
   }, [suiClient, currentAccount]);
 
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
+  const shortAddress = (address: string) => address.slice(0, 6) + "..." + address.slice(-4);
 
   const decryptBlob = useCallback(async (data: Uint8Array, datasetObj: DatasetObject) => {
     if (!currentAccount || !suiClient || !sealClient || !datasetObj) {
@@ -178,12 +182,49 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Dataset Details</h1>
       {dataset ? (
-        <div className="space-y-2 mb-6 p-4 border rounded-lg shadow bg-white">
-          <p><span className="font-semibold">Name:</span> {dataset.metadata.name}</p>
-          <p><span className="font-semibold">Number of Rows:</span> {dataset.metadata.numRows}</p>
-          <p><span className="font-semibold">Number of Tokens:</span> {dataset.metadata.numTokens}</p>
-          <p><span className="font-semibold">Owner:</span> {dataset.owner}</p>
-          <p><span className="font-semibold">Blob ID:</span> {dataset.blobId}</p>
+        <div className="p-6 border rounded-lg shadow-lg bg-white space-y-4 mb-6">
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Name</p>
+              <p className="text-lg text-gray-800">{dataset.metadata.name}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Dataset ID</p>
+              <div className="flex items-center">
+                <Link href={getExplorerUrl(dataset.id, "object")} className="text-blue-600 hover:underline text-lg break-all" target="_blank" rel="noopener noreferrer">
+                  {shortAddress(dataset.id)}
+                </Link>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Owner</p>
+              <div className="flex items-center">
+                <Avatar address={dataset.owner} />
+                <Link href={getExplorerUrl(dataset.owner, "address")} className="text-blue-600 hover:underline text-lg break-all" target="_blank" rel="noopener noreferrer">
+                  {shortAddress(dataset.owner)}
+                </Link>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Creator</p>
+              <div className="flex items-center">
+                <Avatar address={dataset.creator} />
+                <Link href={getExplorerUrl(dataset.creator, "address")} className="text-blue-600 hover:underline text-lg break-all" target="_blank" rel="noopener noreferrer">
+                  {shortAddress(dataset.creator)}
+                </Link>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Number of Rows</p>
+              <p className="text-lg text-gray-800">{dataset.metadata.numRows}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Number of Tokens</p>
+              <p className="text-lg text-gray-800">{dataset.metadata.numTokens}</p>
+            </div>
+          </div>
+
         </div>
       ) : (
         !id ? <p>No dataset ID provided.</p> : <p>Loading dataset metadata...</p>

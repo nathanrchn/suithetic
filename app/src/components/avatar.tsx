@@ -15,5 +15,5 @@ export default function Avatar({ address }: { address: string }) {
   const startColorString = `from-${colors[startColor]}`
   const endColorString = `to-${colors[endColor]}`
 
-  return <div className={cn("bg-gradient-to-r", startColorString, endColorString, "w-5 h-5 rounded-full mr-2")} />
+  return <div className={cn("bg-gradient-to-r", startColorString, endColorString, "w-6 h-6 rounded-full mr-2")} />
 }
