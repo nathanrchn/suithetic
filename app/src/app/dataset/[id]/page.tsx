@@ -1,19 +1,20 @@
 "use client";
 
+import Link from "next/link";
+import { Download } from "lucide-react";
+import Avatar from "@/components/avatar";
 import { DatasetObject } from "@/lib/types";
 import { fromHex } from "@mysten/sui/utils";
-import { use, useState, useEffect, useCallback, useMemo } from "react";
+import { getExplorerUrl } from "@/lib/utils";
 import { getBlob, getDataset } from "@/lib/actions";
 import { TESTNET_PACKAGE_ID } from "@/lib/constants";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
+import DatasetViewer from "@/components/dataset-viewer";
 import { EncryptedObject, SealClient } from "@mysten/seal";
 import { getAllowlistedKeyServers, SessionKey } from "@mysten/seal";
+import { use, useState, useEffect, useCallback, useMemo } from "react";
 import { useSignPersonalMessage, useSuiClient } from "@mysten/dapp-kit";
-import DatasetViewer from "@/components/dataset-viewer";
-import Avatar from "@/components/avatar";
-import { getExplorerUrl } from "@/lib/utils";
-import Link from 'next/link';
 
 export default function DatasetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -178,9 +179,45 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
     }
   }, [decryptedBytes, currentAccount, dataset]);
 
+  const handleDownload = () => {
+    if (!parsedData || !dataset) return;
+    const dataToDownload = parsedData.map(item => item.row);
+
+    const jsonString = JSON.stringify(dataToDownload, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    
+    let filename = "dataset.json";
+    if (dataset.metadata.name) {
+      filename = `${dataset.metadata.name.replace(/\s+/g, '_').replace(/[^a-z0-9_.-]/gi, '')}.json`;
+    } else if (dataset.id) {
+      filename = `${dataset.id.replace(/[^a-z0-9_.-]/gi, '')}.json`;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Dataset Details</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Dataset Details</h1>
+        {dataset && currentAccount && !isLoading && parsedData && (
+          <button 
+            onClick={handleDownload}
+            title="Download Dataset as JSON"
+            className="p-2 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
+          >
+            <Download size={20} />
+          </button>
+        )}
+      </div>
+
       {dataset ? (
         <div className="p-6 border rounded-lg shadow-lg bg-white space-y-4 mb-6">
           
