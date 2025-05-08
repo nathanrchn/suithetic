@@ -227,7 +227,7 @@ export async function generateSyntheticData(
                   setTimeout(() => reject(new Error(`Timeout: No chunk received in ${CHUNK_TIMEOUT_MS}ms for input: ${String(inputText).substring(0,30)}...`)), CHUNK_TIMEOUT_MS)
               );
               
-              let iteratorResultPromise = iterator.next();
+              const iteratorResultPromise = iterator.next();
               let winnerResult;
 
               try {
