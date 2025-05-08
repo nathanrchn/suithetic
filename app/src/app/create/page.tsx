@@ -11,17 +11,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { getWalrusPublisherUrl } from "@/lib/utils";
 import DatasetInput from "@/components/dataset-input";
 import DatasetViewer from "@/components/dataset-viewer";
-import { GenerationConfig, HFDataset } from "@/lib/types";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 import { getModels, generatePreview, generateSyntheticData } from "@/lib/actions";
+import { GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function CreatePage() {
   const [data, setData] = useState<any[]>([]);
   const [model, setModel] = useState<string >("");
   const [models, setModels] = useState<any[]>([]);
   const [prompt, setPrompt] = useState<string>("");
+  const [numEpochs, setNumEpochs] = useState<number>(1);
   const [features, setFeatures] = useState<string[]>([]);
   const [maxTokens, setMaxTokens] = useState<number>(100);
   const [previewData, setPreviewData] = useState<any[]>([]);
@@ -31,8 +33,10 @@ export default function CreatePage() {
   const [jsonSchema, setJsonSchema] = useState<string | null>(null);
   const [previewAttempts, setPreviewAttempts] = useState<number>(0);
   const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
-  const [syntheticDatasetOutput, setSyntheticDatasetOutput] = useState<any[]>([]);
+  const [isStoringDataset, setIsStoringDataset] = useState<boolean>(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState<boolean>(false);
   const [isDatasetGenerationLoading, setIsDatasetGenerationLoading] = useState<boolean>(false);
+  const [syntheticDatasetOutput, setSyntheticDatasetOutput] = useState<SyntheticDataResultItem[]>([]);
 
   const MAX_PREVIEW_ATTEMPTS = 5;
 
@@ -120,8 +124,38 @@ export default function CreatePage() {
     }
   };
 
-  const storeBlob = (encryptedData: Uint8Array) => {
-    return fetch(`${getWalrusPublisherUrl("/v1/blobs?epochs=1", "walrus")}`, {
+  const sanitizeDataset = (dataset: SyntheticDataResultItem[]): Uint8Array => {
+    const rows = dataset.map((item, index) => ({
+      row_idx: index,
+      row: {
+        [`${inputFeature}`]: item.input,
+        "generated_output": item.data
+      },
+      truncated_cells: []
+    }));
+
+    const jsonData = {
+      features: [
+        { feature_idx: 0, name: inputFeature, type: { dtype: "string", _type: "Value" } },
+        { feature_idx: 1, name: "generated_output", type: { dtype: "string", _type: "Value" } }
+      ],
+      rows: rows,
+      num_rows_total: rows.length,
+      num_rows_per_page: 100,
+      partial: false
+    };
+
+    const jsonString = JSON.stringify(jsonData);
+    return new TextEncoder().encode(jsonString);
+  }
+
+  const encryptBlob = async (data: Uint8Array, numEpochs: number): Promise<Uint8Array> => {
+    // this function will be properly defined.
+    return new Uint8Array();
+  }
+
+  const storeBlob = async (encryptedData: Uint8Array, numEpochs: number) => {
+    return fetch(`${getWalrusPublisherUrl(`/v1/blobs?epochs=${numEpochs}`, "walrus")}`, {
       method: "PUT",
       body: encryptedData,
     }).then((response) => {
@@ -133,6 +167,41 @@ export default function CreatePage() {
         throw new Error("Something went wrong when storing the blob!");
       }
     });
+  }
+
+  const encryptAndStoreDataset = async (dataset: any[], numEpochs: number) => {
+    const data = sanitizeDataset(dataset);
+    const encryptedData = await encryptBlob(data, numEpochs);
+    return await storeBlob(encryptedData, numEpochs);
+  }
+
+  const handleEpochsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value, 10);
+    if (!isNaN(value) && value > 0) {
+      setNumEpochs(value);
+    } else if (e.target.value === "") {
+      setNumEpochs(1);
+    }
+  };
+
+  const handleConfirmUpload = async () => {
+    if (syntheticDatasetOutput.length === 0) return;
+    setIsStoringDataset(true);
+    try {
+      console.log(`Encrypting and storing dataset for ${numEpochs} epochs.`);
+      const result = await encryptAndStoreDataset(syntheticDatasetOutput, numEpochs);
+      console.log("Dataset stored successfully:", result);
+      setIsUploadDialogOpen(false);
+      setSyntheticDatasetOutput([]);
+    } catch (error) {
+      console.error("Failed to encrypt and store dataset:", error);
+    } finally {
+      setIsStoringDataset(false);
+    }
+  };
+
+  const mintDataset = async () => {
+    
   }
 
   useEffect(() => {
@@ -151,6 +220,12 @@ export default function CreatePage() {
     }
     fetchData();
   }, [dataset]);
+
+  useEffect(() => {
+    if (syntheticDatasetOutput.length > 0 && !isDatasetGenerationLoading) {
+      setIsUploadDialogOpen(true);
+    }
+  }, [syntheticDatasetOutput, isDatasetGenerationLoading]);
 
   return (
     <div className="flex flex-col items-center justify-center py-8 gap-6">
@@ -362,6 +437,7 @@ export default function CreatePage() {
                               success: item.success,
                               error: item.error,
                               tokens: item.usage?.totalTokens,
+                              signature: item.signature,
                             })), null, 2);
                           } catch (e) {
                             console.error("Error during JSON.stringify in render:", e, "Data was:", syntheticDatasetOutput);
@@ -374,6 +450,47 @@ export default function CreatePage() {
                 )}
               </CardContent>
             </Card>
+
+            <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Upload Synthetic Dataset</DialogTitle>
+                  <DialogDescription>
+                    The generated dataset is ready. Enter the number of epochs for which this dataset will be available for.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="epochs" className="text-right">
+                      Epochs
+                    </Label>
+                    <Input
+                      id="epochs"
+                      type="number"
+                      min="1"
+                      value={numEpochs}
+                      onChange={handleEpochsChange}
+                      className="col-span-3"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)} disabled={isStoringDataset}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" onClick={handleConfirmUpload} disabled={isStoringDataset || numEpochs <= 0}>
+                    {isStoringDataset ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Storing...
+                      </>
+                    ) : (
+                      "Confirm & Upload"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </>
         )}
       </div>

@@ -2,7 +2,7 @@
 
 import { generateText, streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
-import { GenerationConfig, HFDataset } from "@/lib/types";
+import { GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
 
 const atoma = createOpenAI({
   apiKey: process.env.ATOMA_API_KEY,
@@ -54,15 +54,6 @@ export async function generatePreview(config: GenerationConfig, data: string[]) 
 
   return outputs;
 }
-
-type SyntheticDataResultItem = {
-  success: boolean;
-  data?: string;
-  usage?: { totalTokens: number; [key: string]: any };
-  input?: string;
-  error?: string;
-  signature?: string;
-};
 
 export async function generateSyntheticData(
   dataset: HFDataset,

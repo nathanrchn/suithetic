@@ -19,3 +19,13 @@ export type GenerationConfig = {
   maxTokens: number;
   prompt: string;
 }
+
+export type SyntheticDataResultItem = {
+  success: boolean;
+  data?: string;
+  usage?: { totalTokens: number; [key: string]: any };
+  input?: string;
+  error?: string;
+  signature?: string;
+};
+
