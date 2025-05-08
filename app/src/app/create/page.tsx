@@ -6,35 +6,36 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { fromHex, toHex } from "@mysten/sui/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { getWalrusPublisherUrl } from "@/lib/utils";
-import { TESTNET_PACKAGE_ID } from "@/lib/constants";
 import DatasetInput from "@/components/dataset-input";
 import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
+import { fromHex, MIST_PER_SUI, toHex } from "@mysten/sui/utils";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
-import { getModels, generatePreview, generateSyntheticData } from "@/lib/actions";
-import { GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
+import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT } from "@/lib/constants";
+import { getModels, generatePreview, generateSyntheticData, getPrice } from "@/lib/actions";
+import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function CreatePage() {
   const [data, setData] = useState<any[]>([]);
-  const [model, setModel] = useState<string >("");
-  const [models, setModels] = useState<any[]>([]);
   const [prompt, setPrompt] = useState<string>("");
   const [numEpochs, setNumEpochs] = useState<number>(1);
   const [features, setFeatures] = useState<string[]>([]);
+  const [models, setModels] = useState<AtomaModel[]>([]);
   const [maxTokens, setMaxTokens] = useState<number>(100);
   const [previewData, setPreviewData] = useState<any[]>([]);
+  const [model, setModel] = useState<AtomaModel | null>(null);
   const [inputFeature, setInputFeature] = useState<string>("");
   const [dataset, setDataset] = useState<HFDataset | null>(null);
   const [isStructured, setIsStructured] = useState<boolean>(false);
   const [jsonSchema, setJsonSchema] = useState<string | null>(null);
   const [previewAttempts, setPreviewAttempts] = useState<number>(0);
+  const [datasetObject, setDatasetObject] = useState<any | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
   const [isStoringDataset, setIsStoringDataset] = useState<boolean>(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState<boolean>(false);
@@ -50,7 +51,7 @@ export default function CreatePage() {
     verifyKeyServers: false,
   });
 
-  const { mutate: signAndExecute } = useSignAndExecuteTransaction({
+  const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction({
     execute: async ({ bytes, signature }) =>
       await suiClient.executeTransactionBlock({
         transactionBlock: bytes,
@@ -74,7 +75,7 @@ export default function CreatePage() {
     
     try {
       const generationConfig: GenerationConfig = {
-        model,
+        model: model!.id,
         inputFeature,
         jsonSchema,
         maxTokens,
@@ -100,45 +101,64 @@ export default function CreatePage() {
 
   const handleGenerateDataset = async () => {
     if (!dataset) return;
+    const suiPrice = await getPrice();
+
+    const megaTokens = maxTokens / 1_000_000;
+    const roundedGenerationSuiAmount = Math.ceil(suiPrice * model!.price_per_one_million_compute_units * megaTokens * Number(MIST_PER_SUI));
 
     const tx = new Transaction();
-    
-    setIsDatasetGenerationLoading(true);
-    
-    try {
-      const generationConfig: GenerationConfig = {
-        model,
-        inputFeature,
-        jsonSchema,
-        maxTokens,
-        prompt
-      };
+    const [generationCoin] = tx.splitCoins(tx.gas, [roundedGenerationSuiAmount]);
 
-      if (!dataset) {
-        console.error("Client: Dataset is null or undefined, cannot start generation.");
+    tx.moveCall({
+      target: `${TESTNET_PACKAGE_ID}::suithetic::add_to_balance`,
+      arguments: [
+        tx.object(TESTNET_SUITHETIC_OBJECT),
+        generationCoin
+      ],
+    });
+
+    setDatasetObject(tx.moveCall({
+      target: `${TESTNET_PACKAGE_ID}::dataset::mint_dataset`,
+    }));
+
+    signAndExecuteTransaction({ transaction: tx }, { onSuccess: async () => {
+      setIsDatasetGenerationLoading(true);
+    
+      try {
+        const generationConfig: GenerationConfig = {
+          model: model!.id,
+          inputFeature,
+          jsonSchema,
+          maxTokens,
+          prompt
+        };
+  
+        if (!dataset) {
+          console.error("Client: Dataset is null or undefined, cannot start generation.");
+          setSyntheticDatasetOutput([
+            { success: false, error: "Dataset not selected or invalid." }
+          ]);
+          setIsDatasetGenerationLoading(false);
+          return;
+        }
+  
+        setSyntheticDatasetOutput([]); 
+  
+        console.log("Client: Calling generateSyntheticData with dataset:", dataset, "and config:", generationConfig);
+        const results = await generateSyntheticData(dataset, generationConfig, {});
+        console.log("Client: Received all results:", results);
+        setSyntheticDatasetOutput(results);
+  
+      } catch (error: any) {
+        console.error("Client: An unexpected error occurred during dataset generation:", error);
+        const errorMessage = error.message || "An unknown error occurred on the server.";
         setSyntheticDatasetOutput([
-          { success: false, error: "Dataset not selected or invalid." }
+          { success: false, error: `Client-side error: ${errorMessage}` }
         ]);
+      } finally {
         setIsDatasetGenerationLoading(false);
-        return;
       }
-
-      setSyntheticDatasetOutput([]); 
-
-      console.log("Client: Calling generateSyntheticData with dataset:", dataset, "and config:", generationConfig);
-      const results = await generateSyntheticData(dataset, generationConfig, {});
-      console.log("Client: Received all results:", results);
-      setSyntheticDatasetOutput(results);
-
-    } catch (error: any) {
-      console.error("Client: An unexpected error occurred during dataset generation:", error);
-      const errorMessage = error.message || "An unknown error occurred on the server.";
-      setSyntheticDatasetOutput([
-        { success: false, error: `Client-side error: ${errorMessage}` }
-      ]);
-    } finally {
-      setIsDatasetGenerationLoading(false);
-    }
+    }});
   };
 
   const sanitizeDataset = (dataset: SyntheticDataResultItem[]): Uint8Array => {
@@ -166,18 +186,17 @@ export default function CreatePage() {
     return new TextEncoder().encode(jsonString);
   }
 
-  const encryptBlob = async (data: Uint8Array, numEpochs: number): Promise<Uint8Array> => {
-    // const nonce = crypto.getRandomValues(new Uint8Array(5));
-    // const policyObjectBytes = fromHex(policyObject);
-    // const id = toHex(new Uint8Array([...policyObjectBytes, ...nonce]));
-    // const { encryptedObject: encryptedBytes } = await sealClient.encrypt({
-    //   threshold: 2,
-    //   packageId: TESTNET_PACKAGE_ID,
-    //   id,
-    //   data
-    // })
-    // return encryptedBytes;
-    return data;
+  const encryptBlob = async (data: Uint8Array): Promise<Uint8Array> => {
+    const nonce = crypto.getRandomValues(new Uint8Array(5));
+    const policyObjectBytes = fromHex(datasetObject);
+    const id = toHex(new Uint8Array([...policyObjectBytes, ...nonce]));
+    const { encryptedObject: encryptedBytes } = await sealClient.encrypt({
+      threshold: 2,
+      packageId: TESTNET_PACKAGE_ID,
+      id,
+      data
+    })
+    return encryptedBytes;
   }
 
   const storeBlob = async (encryptedData: Uint8Array, numEpochs: number) => {
@@ -198,7 +217,7 @@ export default function CreatePage() {
   const encryptAndStoreDataset = async (dataset: any[], numEpochs: number, encrypt: boolean = true) => {
     const data = sanitizeDataset(dataset);
     if (encrypt) {
-      const encryptedData = await encryptBlob(data, numEpochs);
+      const encryptedData = await encryptBlob(data);
       return await storeBlob(encryptedData, numEpochs);
     } else {
       return await storeBlob(data, numEpochs);
@@ -208,7 +227,11 @@ export default function CreatePage() {
   const handleMaxTokensChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value, 10);
     if (!isNaN(value) && value > 0) {
-      setMaxTokens(value);
+      if (model) {
+        setMaxTokens(Math.min(value, model.max_num_compute_units));
+      } else {
+        setMaxTokens(value);
+      }
     } else if (e.target.value === "") {
       setMaxTokens(100);
     }
@@ -302,7 +325,7 @@ export default function CreatePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="model">Model</Label>
-                    <Select value={model} onValueChange={setModel} disabled={models.length === 0}>
+                    <Select value={model?.id} onValueChange={(value) => setModel(models.find((model) => model.id === value) || null)} disabled={models.length === 0}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a model" />
                       </SelectTrigger>

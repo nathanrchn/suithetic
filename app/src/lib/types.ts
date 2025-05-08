@@ -29,3 +29,12 @@ export type SyntheticDataResultItem = {
   signature?: string;
 };
 
+export type AtomaModel = {
+  id: string;
+  object: string;
+  created: number;
+  owned_by: string;
+  task_small_id: number;
+  price_per_one_million_compute_units: number;
+  max_num_compute_units: number;
+}

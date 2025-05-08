@@ -39,4 +39,5 @@ export const WALRUS_SERVICES: WalrusService[] = [
   },
 ];
 
-export const TESTNET_PACKAGE_ID = ""
+export const TESTNET_PACKAGE_ID = "";
+export const TESTNET_SUITHETIC_OBJECT = "";
