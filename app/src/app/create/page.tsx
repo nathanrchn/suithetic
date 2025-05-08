@@ -29,6 +29,7 @@ export default function CreatePage() {
   const [models, setModels] = useState<AtomaModel[]>([]);
   const [maxTokens, setMaxTokens] = useState<number>(100);
   const [previewData, setPreviewData] = useState<any[]>([]);
+  const [isLocking, setIsLocking] = useState<boolean>(false);
   const [model, setModel] = useState<AtomaModel | null>(null);
   const [inputFeature, setInputFeature] = useState<string>("");
   const [dataset, setDataset] = useState<HFDataset | null>(null);
@@ -36,11 +37,14 @@ export default function CreatePage() {
   const [jsonSchema, setJsonSchema] = useState<string | null>(null);
   const [previewAttempts, setPreviewAttempts] = useState<number>(0);
   const [datasetObject, setDatasetObject] = useState<any | null>(null);
+  const [datasetBlobId, setDatasetBlobId] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
   const [isStoringDataset, setIsStoringDataset] = useState<boolean>(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState<boolean>(false);
   const [isDatasetGenerationLoading, setIsDatasetGenerationLoading] = useState<boolean>(false);
   const [syntheticDatasetOutput, setSyntheticDatasetOutput] = useState<SyntheticDataResultItem[]>([]);
+  const [datasetName, setDatasetName] = useState<string>("");
+  const [uploadCompleted, setUploadCompleted] = useState<boolean>(false);
 
   const MAX_PREVIEW_ATTEMPTS = 5;
 
@@ -214,7 +218,7 @@ export default function CreatePage() {
     });
   }
 
-  const encryptAndStoreDataset = async (dataset: any[], numEpochs: number, encrypt: boolean = true) => {
+  const encryptAndStoreDataset = async (dataset: SyntheticDataResultItem[], numEpochs: number, encrypt: boolean) => {
     const data = sanitizeDataset(dataset);
     if (encrypt) {
       const encryptedData = await encryptBlob(data);
@@ -251,10 +255,10 @@ export default function CreatePage() {
     setIsStoringDataset(true);
     try {
       console.log(`Encrypting and storing dataset for ${numEpochs} epochs.`);
-      const result = await encryptAndStoreDataset(syntheticDatasetOutput, numEpochs);
-      console.log("Dataset stored successfully:", result);
-      setIsUploadDialogOpen(false);
-      setSyntheticDatasetOutput([]);
+      const info = await encryptAndStoreDataset(syntheticDatasetOutput, numEpochs, true);
+      setDatasetBlobId(info.info.newlyCreated.blobObject.blobId);
+      console.log("Dataset stored successfully:", info);
+      setUploadCompleted(true);
     } catch (error) {
       console.error("Failed to encrypt and store dataset:", error);
     } finally {
@@ -262,9 +266,48 @@ export default function CreatePage() {
     }
   };
 
-  const mintDataset = async () => {
+  const handleCancelDialog = () => {
+    setIsUploadDialogOpen(false);
+    setUploadCompleted(false);
+    setSyntheticDatasetOutput([]);
+    setNumEpochs(1);
+    setDatasetName("");
+    setDatasetBlobId(null);
+  };
 
-  }
+  const handleLockDataset = async () => {
+    if (!datasetBlobId || !datasetName.trim()) {
+      console.error("Dataset Blob ID or Dataset Name is missing for locking.");
+      return;
+    }
+    console.log(`Attempting to lock dataset: ${datasetName} with blob ID: ${datasetBlobId}`);
+    try {
+      setIsLocking(true);
+
+      const numRows = syntheticDatasetOutput.length;
+      const numTokens = syntheticDatasetOutput.reduce((acc, item) => acc + (item.usage?.totalTokens || 0), 0);
+      
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${TESTNET_PACKAGE_ID}::dataset::lock_dataset`,
+        arguments: [
+          tx.object(datasetObject),
+          tx.pure.string(datasetBlobId),
+          tx.pure.string(datasetName),
+          tx.pure.u64(numRows),
+          tx.pure.u64(numTokens),
+          tx.pure.vector("string", syntheticDatasetOutput.map((item) => item.signature!))
+        ]
+      })
+
+      handleCancelDialog();
+    } catch (error) {
+      console.error("Failed to lock dataset (simulated):", error);
+    } finally {
+      setIsLocking(false);
+    }
+  };
 
   useEffect(() => {
     getModels().then((models) => {
@@ -284,10 +327,12 @@ export default function CreatePage() {
   }, [dataset]);
 
   useEffect(() => {
-    if (syntheticDatasetOutput.length > 0 && !isDatasetGenerationLoading) {
+    if (syntheticDatasetOutput.length > 0 && !isDatasetGenerationLoading && !isUploadDialogOpen) {
+      setUploadCompleted(false); // Reset for new upload flow
+      setDatasetName(""); // Reset name for new upload flow
       setIsUploadDialogOpen(true);
     }
-  }, [syntheticDatasetOutput, isDatasetGenerationLoading]);
+  }, [syntheticDatasetOutput, isDatasetGenerationLoading, isUploadDialogOpen]);
 
   return (
     <div className="flex flex-col items-center justify-center py-8 gap-6">
@@ -513,43 +558,81 @@ export default function CreatePage() {
               </CardContent>
             </Card>
 
-            <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+            <Dialog open={isUploadDialogOpen} onOpenChange={(isOpen) => {
+              if (!isOpen) {
+                handleCancelDialog();
+              } else {
+                setIsUploadDialogOpen(true);
+              }
+            }}>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Upload Synthetic Dataset</DialogTitle>
+                  <DialogTitle>{uploadCompleted ? "Lock Dataset" : "Upload Synthetic Dataset"}</DialogTitle>
                   <DialogDescription>
-                    The generated dataset is ready. Enter the number of epochs for which this dataset will be available for.
+                    {uploadCompleted 
+                      ? "Enter a name for your dataset to lock it on-chain."
+                      : "The generated dataset is ready. Enter the number of epochs for which this dataset will be available."
+                    }
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="epochs" className="text-right">
-                      Epochs
-                    </Label>
-                    <Input
-                      id="epochs"
-                      type="number"
-                      min="1"
-                      value={numEpochs}
-                      onChange={handleEpochsChange}
-                      className="col-span-3"
-                    />
-                  </div>
+                  {!uploadCompleted ? (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="epochs" className="text-right">
+                        Epochs
+                      </Label>
+                      <Input
+                        id="epochs"
+                        type="number"
+                        min="1"
+                        value={numEpochs}
+                        onChange={handleEpochsChange}
+                        className="col-span-3"
+                        disabled={isStoringDataset}
+                      />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="datasetName" className="text-right">
+                        Name
+                      </Label>
+                      <Input
+                        id="datasetName"
+                        value={datasetName}
+                        onChange={(e) => setDatasetName(e.target.value)}
+                        placeholder="My Awesome Dataset"
+                        className="col-span-3"
+                      />
+                    </div>
+                  )}
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)} disabled={isStoringDataset}>
+                  <Button variant="outline" onClick={handleCancelDialog} disabled={isStoringDataset}>
                     Cancel
                   </Button>
-                  <Button type="submit" onClick={handleConfirmUpload} disabled={isStoringDataset || numEpochs <= 0}>
-                    {isStoringDataset ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Storing...
-                      </>
-                    ) : (
-                      "Confirm & Upload"
-                    )}
-                  </Button>
+                  {!uploadCompleted ? (
+                    <Button type="submit" onClick={handleConfirmUpload} disabled={isStoringDataset || numEpochs <= 0}>
+                      {isStoringDataset ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        "Confirm & Upload"
+                      )}
+                    </Button>
+                  ) : (
+                    <Button type="submit" onClick={handleLockDataset} disabled={!datasetName.trim()}>
+                      {isLocking ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Locking...
+                        </>
+                      ) : (
+                        "Lock Dataset"
+                      )}
+                    </Button>
+                  )}
                 </DialogFooter>
               </DialogContent>
             </Dialog>

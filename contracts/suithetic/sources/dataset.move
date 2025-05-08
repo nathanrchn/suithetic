@@ -1,12 +1,12 @@
 module suithetic::dataset {
     use sui::event;
+    use std::string;
     use sui::sui::SUI;
     use sui::package::claim;
     use std::string::String;
     use sui::coin::{Self, Coin};
     use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
     use sui::transfer_policy::{Self, TransferPolicy, TransferRequest};
-    use std::string;
     
     const ENoAccess: u64 = 0;
     const EInvalidDataset: u64 = 1;
@@ -34,6 +34,7 @@ module suithetic::dataset {
         version: u64,
         blob_id: Option<String>,
         metadata: DatasetMetadata,
+        signatures: Option<vector<String>>,
     }
 
     public struct DatasetListedEvent has copy, drop {
@@ -74,18 +75,20 @@ module suithetic::dataset {
                 num_rows: option::none(),
                 num_tokens: option::none(),
             },
+            signatures: option::none(),
         };
 
         dataset
     }
 
-    public fun lock_dataset(dataset: &mut Dataset, blob_id: String, name: String, num_rows: u64, num_tokens: u64) {
+    public fun lock_dataset(dataset: &mut Dataset, blob_id: String, name: String, num_rows: u64, num_tokens: u64, signatures: vector<String>) {
         assert!(dataset.version == 0, EAlreadyLockedDataset);
 
         dataset.blob_id = option::some(blob_id);
         dataset.metadata.name = option::some(name);
         dataset.metadata.num_rows = option::some(num_rows);
         dataset.metadata.num_tokens = option::some(num_tokens);
+        dataset.signatures = option::some(signatures);
 
         dataset.version = dataset.version + 1;
     }
