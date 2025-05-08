@@ -2,7 +2,7 @@
 
 import { DatasetObject } from "@/lib/types";
 import { fromHex } from "@mysten/sui/utils";
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useCallback, useMemo } from "react";
 import { getBlob, getDataset } from "@/lib/actions";
 import { TESTNET_PACKAGE_ID } from "@/lib/constants";
 import { useCurrentAccount } from "@mysten/dapp-kit";
@@ -10,86 +10,212 @@ import { Transaction } from "@mysten/sui/transactions";
 import { EncryptedObject, SealClient } from "@mysten/seal";
 import { getAllowlistedKeyServers, SessionKey } from "@mysten/seal";
 import { useSignPersonalMessage, useSuiClient } from "@mysten/dapp-kit";
+import DatasetViewer from "@/components/dataset-viewer";
 
 export default function DatasetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [dataset, setDataset] = useState<DatasetObject | null>(null);
   const [decryptedBytes, setDecryptedBytes] = useState<Uint8Array | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [parsedData, setParsedData] = useState<any[] | null>(null);
+  const [features, setFeatures] = useState<string[]>([]);
 
   const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();
-  const sealClient = new SealClient({
-    suiClient,
-    serverObjectIds: [getAllowlistedKeyServers("testnet")[0]],
-    verifyKeyServers: false,
-  });
+  const sealClient = useMemo(() => {
+    if (!suiClient || !currentAccount) {
+      return null;
+    }
+    return new SealClient({
+      suiClient,
+      serverObjectIds: [getAllowlistedKeyServers("testnet")[0]],
+      verifyKeyServers: false,
+    });
+  }, [suiClient, currentAccount]);
 
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
 
-  const decryptBlob = async (data: Uint8Array, dataset: DatasetObject) => {
+  const decryptBlob = useCallback(async (data: Uint8Array, datasetObj: DatasetObject) => {
+    if (!currentAccount || !suiClient || !sealClient || !datasetObj) {
+      setIsLoading(false);
+      return;
+    }
+
     const tx = new Transaction();
-
-    console.log(data);
-
-    const id = EncryptedObject.parse(data).id;
+    const encryptedObjectId = EncryptedObject.parse(data).id;
 
     const sessionKey = new SessionKey({
-      address: currentAccount!.address,
+      address: currentAccount.address,
       packageId: TESTNET_PACKAGE_ID,
       ttlMin: 10,
     });
 
-    signPersonalMessage({ message: sessionKey.getPersonalMessage() }, { onSuccess: async (result) => {
-      await sessionKey.setPersonalMessageSignature(result.signature);
+    signPersonalMessage(
+      { message: sessionKey.getPersonalMessage() },
+      {
+        onSuccess: async (result) => {
+          await sessionKey.setPersonalMessageSignature(result.signature);
 
-      tx.moveCall({
-        target: `${TESTNET_PACKAGE_ID}::dataset::seal_approve`,
-        arguments: [tx.pure.vector("u8", fromHex(id)), tx.object(dataset!.id)],
-      });
-  
-      const txBytes = await tx.build({ client: suiClient, onlyTransactionKind: true });
+          tx.moveCall({
+            target: `${TESTNET_PACKAGE_ID}::dataset::seal_approve`,
+            arguments: [tx.pure.vector("u8", fromHex(encryptedObjectId)), tx.object(datasetObj.id)],
+          });
 
-      await sealClient.fetchKeys({
-        ids: [id],
-        txBytes,
-        sessionKey,
-        threshold: 1,
-      });
+          const txBytes = await tx.build({ client: suiClient, onlyTransactionKind: true });
 
-      const keyServers = await sealClient.getKeyServers();
-      console.log(keyServers);
-  
-      const decryptedBytes = await sealClient.decrypt({
-        data,
-        sessionKey,
-        txBytes,
-      });
+          try {
+            await sealClient.fetchKeys({
+              ids: [encryptedObjectId],
+              txBytes,
+              sessionKey,
+              threshold: 1,
+            });
 
-      console.log(decryptedBytes);
-
-      setDecryptedBytes(decryptedBytes);
-    }});
-  };
+            const decrypted = await sealClient.decrypt({
+              data,
+              sessionKey,
+              txBytes,
+            });
+            setDecryptedBytes(decrypted);
+          } catch (error) {
+            console.error("Error during decryption process:", error);
+            setDecryptedBytes(null);
+            setIsLoading(false);
+          }
+        },
+        onError: (error) => {
+          console.error("Error signing personal message for decryption:", error);
+          setDecryptedBytes(null);
+          setIsLoading(false);
+        },
+      }
+    );
+  }, [currentAccount, suiClient, sealClient, signPersonalMessage]);
 
   useEffect(() => {
-    getDataset(id).then((dataset) => {
-      setDataset(dataset);
-    });
-  }, []);
+    if (id) {
+      getDataset(id).then((ds) => {
+        setDataset(ds);
+      }).catch(error => {
+        console.error("Failed to fetch dataset metadata:", error);
+        setDataset(null);
+      });
+    }
+  }, [id]);
 
   useEffect(() => {
-    if (!dataset || !currentAccount) {
+    if (!dataset) {
       return;
     }
 
-    getBlob(dataset!.blobId).then((blob) => {
-      decryptBlob(blob, dataset);
-    });
-  }, [dataset, currentAccount]);
+    if (!currentAccount) {
+      setDecryptedBytes(null);
+      setParsedData(null);
+      setFeatures([]);
+      setIsLoading(false);
+      return;
+    }
+    
+    setIsLoading(true);
+    setDecryptedBytes(null);
+    setParsedData(null);
+    setFeatures([]);
+
+    getBlob(dataset.blobId)
+      .then((blob) => {
+        if (blob) {
+          decryptBlob(blob, dataset);
+        } else {
+          throw new Error("Blob data is null or undefined");
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to get blob:", error);
+        setIsLoading(false);
+      });
+  }, [dataset, currentAccount, decryptBlob]);
+
+  useEffect(() => {
+    if (decryptedBytes) {
+      try {
+        const stringData = new TextDecoder().decode(decryptedBytes);
+        const rawParsedData = JSON.parse(stringData);
+
+        if (rawParsedData && Array.isArray(rawParsedData.features) && Array.isArray(rawParsedData.rows)) {
+          const extractedFeatures = rawParsedData.features.map((feature: { name: string }) => feature.name);
+          setFeatures(extractedFeatures);
+
+          const formattedForViewer = rawParsedData.rows.map((dataRow: { row_idx: number, row: any }) => ({
+            row_idx: dataRow.row_idx,
+            row: dataRow.row,
+          }));
+          setParsedData(formattedForViewer);
+
+          if (formattedForViewer.length === 0) {
+            console.log("Parsed data resulted in an empty array of rows.");
+          }
+          if (extractedFeatures.length === 0) {
+            console.log("No features extracted from the data.");
+          }
+
+        } else {
+          console.error("Parsed data is not in the expected format (missing features or rows array):", rawParsedData);
+          setParsedData(null);
+          setFeatures([]);
+        }
+      } catch (e) {
+        console.error("Failed to parse decrypted data:", e);
+        setParsedData(null);
+        setFeatures([]);
+      } finally {
+        setIsLoading(false);
+      }
+    } else if (currentAccount && dataset) { 
+    }
+  }, [decryptedBytes, currentAccount, dataset]);
 
   return (
-    <div>
-      <h1>Dataset</h1>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Dataset Details</h1>
+      {dataset ? (
+        <div className="space-y-2 mb-6 p-4 border rounded-lg shadow bg-white">
+          <p><span className="font-semibold">Name:</span> {dataset.metadata.name}</p>
+          <p><span className="font-semibold">Number of Rows:</span> {dataset.metadata.numRows}</p>
+          <p><span className="font-semibold">Number of Tokens:</span> {dataset.metadata.numTokens}</p>
+          <p><span className="font-semibold">Owner:</span> {dataset.owner}</p>
+          <p><span className="font-semibold">Blob ID:</span> {dataset.blobId}</p>
+        </div>
+      ) : (
+        !id ? <p>No dataset ID provided.</p> : <p>Loading dataset metadata...</p>
+      )}
+
+      {dataset && !currentAccount && (
+        <div className="p-4 border rounded-lg shadow bg-yellow-50 text-yellow-700">
+          <p>Please connect your wallet to view the full dataset contents.</p>
+        </div>
+      )}
+
+      {dataset && currentAccount && isLoading && (
+        <div className="p-4 border rounded-lg shadow bg-blue-50 text-blue-700">
+          <p>Loading and decrypting dataset contents...</p>
+        </div>
+      )}
+
+      {dataset && currentAccount && !isLoading && decryptedBytes && !parsedData && (
+        <div className="p-4 border rounded-lg shadow bg-red-50 text-red-700">
+          <p>Could not parse or display the dataset contents. The data might be corrupted, in an unexpected format, or the decryption process encountered an issue.</p>
+        </div>
+      )}
+      
+      {dataset && currentAccount && !isLoading && parsedData && (
+        features.length > 0 ? (
+          <DatasetViewer features={features} data={parsedData} />
+        ) : (
+          <div className="p-4 border rounded-lg shadow bg-gray-50 text-gray-700">
+            <p>The dataset is empty or does not contain any displayable features after processing.</p>
+          </div>
+        )
+      )}
     </div>
   );
 }
