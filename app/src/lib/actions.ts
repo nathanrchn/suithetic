@@ -16,18 +16,34 @@ export async function getRows(dataset: HFDataset, offset: number, length: number
 }
 
 export async function getModels() {
-  const response = await fetch("https://api.atoma.network/v1/models", {
+  const responseModels = await fetch("https://api.atoma.network/v1/models", {
     headers: {
       "Authorization": `Bearer ${process.env.ATOMA_API_KEY}`
     }
   });
 
-  if (!response.ok) {
+  if (!responseModels.ok) {
     return [];
   }
 
-  const data = await response.json();
-  return data.data;
+  const data = (await responseModels.json()).data;
+
+  const responseTasks = await fetch("https://credentials.atoma.network/tasks");
+  const tasks = await responseTasks.json();
+
+  const responseSubscriptions = await fetch("https://credentials.atoma.network/subscriptions");
+  const subscriptions = await responseSubscriptions.json();
+
+  return data.map((model: any) => {
+    const task = tasks.find((task: any) => task[0].model_name === model.id);
+    const subscription = subscriptions.find((subscription: any) => subscription.task_small_id === task[0].task_small_id);
+    return {
+      ...model,
+      task_small_id: task[0].task_small_id,
+      price_per_one_million_compute_units: subscription.price_per_one_million_compute_units,
+      max_num_compute_units: subscription.max_num_compute_units
+    }
+  });
 }
 
 export async function generatePreview(config: GenerationConfig, data: string[]) {

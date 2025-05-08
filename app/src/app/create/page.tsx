@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getWalrusPublisherUrl } from "@/lib/utils";
 import { TESTNET_PACKAGE_ID } from "@/lib/constants";
 import DatasetInput from "@/components/dataset-input";
+import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
@@ -99,6 +100,8 @@ export default function CreatePage() {
 
   const handleGenerateDataset = async () => {
     if (!dataset) return;
+
+    const tx = new Transaction();
     
     setIsDatasetGenerationLoading(true);
     
