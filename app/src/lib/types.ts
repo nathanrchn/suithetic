@@ -38,3 +38,17 @@ export type AtomaModel = {
   price_per_one_million_compute_units: number;
   max_num_compute_units: number;
 }
+
+export type DatasetObject = {
+  id: string;
+  owner: string;
+  creator: string;
+  version: number;
+  blobId: string;
+  metadata: {
+    name: string;
+    numRows: number;
+    numTokens: number;
+  };
+  signatures: string[];
+}

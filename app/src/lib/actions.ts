@@ -5,16 +5,24 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { WalrusClient } from "@mysten/walrus";
 import { SuiClient } from "@mysten/sui/client";
 import { getFullnodeUrl } from "@mysten/sui/client";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { TESTNET_WALRUS_PACKAGE_CONFIG } from "@/lib/constants";
 import { MIST_PER_SUI, parseStructTag } from "@mysten/sui/utils";
 import { coinWithBalance, Transaction } from "@mysten/sui/transactions";
 import { getFaucetHost, requestSuiFromFaucetV2 } from "@mysten/sui/faucet";
-import { GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
+import { TESTNET_KEYPAIR, TESTNET_WALRUS_PACKAGE_CONFIG } from "@/lib/constants";
+import { GenerationConfig, HFDataset, SyntheticDataResultItem, DatasetObject } from "@/lib/types";
 
 const atoma = createOpenAI({
   apiKey: process.env.ATOMA_API_KEY,
   baseURL: "https://api.atoma.network/v1",
+});
+
+const suiClient = new SuiClient({
+  url: getFullnodeUrl("testnet"),
+});
+
+const walrusClient = new WalrusClient({
+  network: "testnet",
+  suiClient,
 });
 
 export async function getRows(dataset: HFDataset, offset: number, length: number) {
@@ -335,31 +343,25 @@ export const getPrice = async (): Promise<number> => {
 }
 
 async function getFundedKeypairSecretKey() {
-	const suiClient = new SuiClient({
-		url: getFullnodeUrl('testnet'),
-	});
-
-	const keypair = Ed25519Keypair.fromSecretKey(
-		"suiprivkey1qzmcxscyglnl9hnq82crqsuns0q33frkseks5jw0fye3tuh83l7e6ajfhxx",
-	);
-	console.log(keypair.toSuiAddress());
+	const keypair = TESTNET_KEYPAIR;
 
 	const balance = await suiClient.getBalance({
 		owner: keypair.toSuiAddress(),
 	});
 
-	if (BigInt(balance.totalBalance) < MIST_PER_SUI) {
-		await requestSuiFromFaucetV2({
-			host: getFaucetHost("testnet"),
-			recipient: keypair.toSuiAddress(),
-		});
-	}
+  console.log(balance);
+
+	// if (BigInt(balance.totalBalance) < MIST_PER_SUI) {
+	// 	await requestSuiFromFaucetV2({
+	// 		host: getFaucetHost("testnet"),
+	// 		recipient: keypair.toSuiAddress(),
+	// 	});
+	// }
 
 	const walBalance = await suiClient.getBalance({
 		owner: keypair.toSuiAddress(),
 		coinType: "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL",
 	});
-	console.log('wal balance:', walBalance.totalBalance);
 
 	if (Number(walBalance.totalBalance) < Number(MIST_PER_SUI) / 2) {
 		const tx = new Transaction();
@@ -392,35 +394,54 @@ async function getFundedKeypairSecretKey() {
 			signer: keypair,
 		});
 
-		const { effects } = await suiClient.waitForTransaction({
+		await suiClient.waitForTransaction({
 			digest,
 			options: {
 				showEffects: true,
 			},
 		});
-
-		console.log(effects);
 	}
 
 	return keypair;
 }
 
 export async function storeBlob(encryptedData: Uint8Array, numEpochs: number) {
-  const suiClient = new SuiClient({
-    url: getFullnodeUrl("testnet"),
-  });
-
-  const walrusClient = new WalrusClient({
-    network: "testnet",
-    suiClient,
-  });
-
   const { blobId } = await walrusClient.writeBlob({
     blob: encryptedData,
     deletable: false,
     epochs: numEpochs,
-    signer: await getFundedKeypairSecretKey(),
+    signer: await getFundedKeypairSecretKey()
   })
 
   return blobId;
+}
+
+export async function getBlob(blobId: string) {
+  return await walrusClient.readBlob({ blobId });
+}
+
+export async function getDataset(id: string): Promise<DatasetObject> {
+  const result = await suiClient.getObject({
+    id: id,
+    options: {
+      showContent: true,
+    }
+  });
+
+  const content = result.data!.content! as any;
+  const fields = content.fields;
+
+  return {
+    id: id,
+    owner: fields.owner,
+    creator: fields.creator,
+    version: fields.version,
+    blobId: fields.blob_id,
+    metadata: {
+      name: fields.metadata.fields.name,
+      numRows: fields.metadata.fields.num_rows,
+      numTokens: fields.metadata.fields.num_tokens,
+    },
+    signatures: fields.signatures,
+  }
 }

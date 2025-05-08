@@ -1,4 +1,5 @@
 import { WalrusService } from "./types";
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 
 export const WALRUS_SERVICES: WalrusService[] = [
   {
@@ -50,6 +51,10 @@ export const TESTNET_WALRUS_PACKAGE_CONFIG = {
 		"0x8d63209cf8589ce7aef8f262437163c67577ed09f3e636a9d8e0813843fb8bf1",
 	],
 }
+
+export const TESTNET_KEYPAIR = Ed25519Keypair.fromSecretKey(
+  "suiprivkey1qzmcxscyglnl9hnq82crqsuns0q33frkseks5jw0fye3tuh83l7e6ajfhxx",
+);
 
 export const UNITS_PER_USDC = 1_000_000;
 export const TESTNET_PACKAGE_ID = "0x4fbab0de0271f7f1d29544c40309602af3c58f0ea59e589e47c36d6e3219fdd9";

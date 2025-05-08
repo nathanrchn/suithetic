@@ -29,12 +29,14 @@ export default function CreatePage() {
   const [maxTokens, setMaxTokens] = useState<number>(100);
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [isLocking, setIsLocking] = useState<boolean>(false);
+  const [datasetName, setDatasetName] = useState<string>("");
   const [model, setModel] = useState<AtomaModel | null>(null);
   const [inputFeature, setInputFeature] = useState<string>("");
   const [dataset, setDataset] = useState<HFDataset | null>(null);
   const [isStructured, setIsStructured] = useState<boolean>(false);
   const [jsonSchema, setJsonSchema] = useState<string | null>(null);
   const [previewAttempts, setPreviewAttempts] = useState<number>(0);
+  const [uploadCompleted, setUploadCompleted] = useState<boolean>(false);
   const [datasetBlobId, setDatasetBlobId] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
   const [isStoringDataset, setIsStoringDataset] = useState<boolean>(false);
@@ -42,8 +44,6 @@ export default function CreatePage() {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState<boolean>(false);
   const [isDatasetGenerationLoading, setIsDatasetGenerationLoading] = useState<boolean>(false);
   const [syntheticDatasetOutput, setSyntheticDatasetOutput] = useState<SyntheticDataResultItem[]>([]);
-  const [datasetName, setDatasetName] = useState<string>("");
-  const [uploadCompleted, setUploadCompleted] = useState<boolean>(false);
 
   const MAX_PREVIEW_ATTEMPTS = 5;
 
@@ -196,8 +196,8 @@ export default function CreatePage() {
 
   const encryptBlob = async (data: Uint8Array): Promise<Uint8Array> => {
     const nonce = crypto.getRandomValues(new Uint8Array(5));
-    const policyObjectBytes = fromHex(datasetObjectId!);
-    const id = toHex(new Uint8Array([...policyObjectBytes, ...nonce]));
+    const datasetObjectBytes = fromHex(datasetObjectId!);
+    const id = toHex(new Uint8Array([...datasetObjectBytes, ...nonce]));
     const { encryptedObject: encryptedBytes } = await sealClient.encrypt({
       threshold: 2,
       packageId: TESTNET_PACKAGE_ID,
@@ -319,8 +319,8 @@ export default function CreatePage() {
 
   useEffect(() => {
     if (syntheticDatasetOutput.length > 0 && !isDatasetGenerationLoading && !isUploadDialogOpen) {
-      setUploadCompleted(false); // Reset for new upload flow
-      setDatasetName(""); // Reset name for new upload flow
+      setUploadCompleted(false);
+      setDatasetName("");
       setIsUploadDialogOpen(true);
     }
   }, [syntheticDatasetOutput, isDatasetGenerationLoading, isUploadDialogOpen]);
