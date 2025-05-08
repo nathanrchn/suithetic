@@ -4,13 +4,16 @@ module suithetic::dataset {
     use sui::package::claim;
     use std::string::String;
     use sui::coin::{Self, Coin};
-    use suithetic::suithetic::{Self, Request};
     use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
     use sui::transfer_policy::{Self, TransferPolicy, TransferRequest};
+    use std::string;
     
     const ENoAccess: u64 = 0;
     const EInvalidDataset: u64 = 1;
     const EInsufficientAmount: u64 = 2;
+    const EAlreadyLockedDataset: u64 = 3;
+    const EBlobIdNotSet: u64 = 4;
+    const EMetadataNotSet: u64 = 5;
 
     public struct RoyaltyRule has drop {}
     
@@ -19,17 +22,17 @@ module suithetic::dataset {
     }
 
     public struct DatasetMetadata has store {
-        name: String,
-        num_rows: u64,
-        num_tokens: u64,
-        version: u64,
+        name: Option<String>,
+        num_rows: Option<u64>,
+        num_tokens: Option<u64>,
     }
 
     public struct Dataset has key, store {
         id: UID,
         owner: address,
-        blob_id: String,
         creator: address,
+        version: u64,
+        blob_id: Option<String>,
         metadata: DatasetMetadata,
     }
 
@@ -59,26 +62,70 @@ module suithetic::dataset {
         transfer::public_transfer(publisher, ctx.sender());
     }
 
-    public fun create_dataset(blob_id: String, name: String, num_rows: u64, num_tokens: u64, ctx: &mut TxContext): (Dataset, Request) {
+    public fun mint_dataset(ctx: &mut TxContext): Dataset {
         let dataset = Dataset {
             id: object::new(ctx),
             owner: ctx.sender(),
-            blob_id,
             creator: ctx.sender(),
+            blob_id: option::none(),
+            version: 0,
             metadata: DatasetMetadata {
-                name,
-                num_rows,
-                num_tokens,
-                version: 0,
+                name: option::none(),
+                num_rows: option::none(),
+                num_tokens: option::none(),
             },
         };
 
-        (dataset, suithetic::new_request())
+        dataset
+    }
+
+    public fun lock_dataset(dataset: &mut Dataset, blob_id: String, name: String, num_rows: u64, num_tokens: u64) {
+        assert!(dataset.version == 0, EAlreadyLockedDataset);
+
+        dataset.blob_id = option::some(blob_id);
+        dataset.metadata.name = option::some(name);
+        dataset.metadata.num_rows = option::some(num_rows);
+        dataset.metadata.num_tokens = option::some(num_tokens);
+
+        dataset.version = dataset.version + 1;
+    }
+
+
+    entry public fun get_dataset_blob_id(dataset: &Dataset): String {
+        let blob_id = dataset.blob_id.get_with_default(string::utf8(vector[]));
+
+        assert!(!blob_id.is_empty(), EBlobIdNotSet);
+
+        blob_id
+    }
+
+    entry public fun get_dataset_name(dataset: &Dataset): String {
+        let name = dataset.metadata.name.get_with_default(string::utf8(vector[]));
+
+        assert!(!name.is_empty(), EMetadataNotSet);
+
+        name
+    }
+
+    entry public fun get_dataset_num_rows(dataset: &Dataset): u64 {
+        let num_rows = dataset.metadata.num_rows.get_with_default(0);
+
+        assert!(num_rows > 0, EMetadataNotSet);
+
+        num_rows
+    }
+
+    entry public fun get_dataset_num_tokens(dataset: &Dataset): u64 {
+        let num_tokens = dataset.metadata.num_tokens.get_with_default(0);
+
+        assert!(num_tokens > 0, EMetadataNotSet);
+
+        num_tokens
     }
 
     entry public fun place_and_list_dataset(dataset: Dataset, price: u64, kiosk: &mut Kiosk, cap: &KioskOwnerCap) {
         let dataset_id = object::id(&dataset);
-        let dataset_version = dataset.metadata.version;
+        let dataset_version = dataset.version;
 
         kiosk::place_and_list(kiosk, cap, dataset, price);
 
@@ -98,11 +145,11 @@ module suithetic::dataset {
 
         event::emit(DatasetPurchasedEvent {
             dataset: object::id(&dataset),
-            version: dataset.metadata.version,
+            version: dataset.version,
         });
 
         dataset.owner = new_owner;
-        dataset.metadata.version = dataset.metadata.version + 1;
+        dataset.version = dataset.version + 1;
         transfer::public_transfer(dataset, new_owner);
     }
 
