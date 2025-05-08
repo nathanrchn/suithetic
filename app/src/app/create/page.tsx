@@ -121,7 +121,7 @@ export default function CreatePage() {
       ],
     });
 
-    let datasetObject = tx.moveCall({
+    const datasetObject = tx.moveCall({
       target: `${TESTNET_PACKAGE_ID}::dataset::mint_dataset`,
     });
 
