@@ -1,10 +1,9 @@
 "use client";
 
-import { getDataset } from "@/lib/actions";
 import { DatasetObject } from "@/lib/types";
 import { fromHex } from "@mysten/sui/utils";
 import { use, useState, useEffect } from "react";
-import { getWalrusPublisherUrl } from "@/lib/utils";
+import { getBlob, getDataset } from "@/lib/actions";
 import { TESTNET_PACKAGE_ID } from "@/lib/constants";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
@@ -26,12 +25,6 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
   });
 
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
-
-  const getBlob = async (id: string) => {
-    return fetch(`${getWalrusPublisherUrl(`/v1/blobs/${id}`, "service1")}`)
-      .then((res) => res.arrayBuffer())
-      .then((buffer) => new Uint8Array(buffer));
-  }
 
   const decryptBlob = async (data: Uint8Array, dataset: DatasetObject) => {
     const tx = new Transaction();

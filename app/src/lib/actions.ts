@@ -2,8 +2,13 @@
 
 import { generateText, streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
+import { WalrusClient } from "@mysten/walrus";
 import { SuiClient } from "@mysten/sui/client";
 import { getFullnodeUrl } from "@mysten/sui/client";
+import { MIST_PER_SUI, parseStructTag } from "@mysten/sui/utils";
+import { coinWithBalance, Transaction } from "@mysten/sui/transactions";
+import { getFaucetHost, requestSuiFromFaucetV2 } from "@mysten/sui/faucet";
+import { TESTNET_KEYPAIR, TESTNET_PACKAGE_ID, TESTNET_WALRUS_PACKAGE_CONFIG } from "@/lib/constants";
 import { GenerationConfig, HFDataset, SyntheticDataResultItem, DatasetObject } from "@/lib/types";
 
 const atoma = createOpenAI({
@@ -13,6 +18,11 @@ const atoma = createOpenAI({
 
 const suiClient = new SuiClient({
   url: getFullnodeUrl("testnet"),
+});
+
+const walrusClient = new WalrusClient({
+  network: "testnet",
+  suiClient,
 });
 
 export async function getRows(dataset: HFDataset, offset: number, length: number) {
@@ -330,6 +340,84 @@ export const getPrice = async (): Promise<number> => {
   });
   const data = await response.json();
   return Number(data.data["20947"].quote.USD.price);
+}
+
+async function getFundedKeypairSecretKey() {
+	const keypair = TESTNET_KEYPAIR;
+
+	const balance = await suiClient.getBalance({
+		owner: keypair.toSuiAddress(),
+	});
+
+  console.log(balance);
+
+	// if (BigInt(balance.totalBalance) < MIST_PER_SUI) {
+	// 	await requestSuiFromFaucetV2({
+	// 		host: getFaucetHost("testnet"),
+	// 		recipient: keypair.toSuiAddress(),
+	// 	});
+	// }
+
+	const walBalance = await suiClient.getBalance({
+		owner: keypair.toSuiAddress(),
+		coinType: "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL",
+	});
+
+	if (Number(walBalance.totalBalance) < Number(MIST_PER_SUI) / 2) {
+		const tx = new Transaction();
+
+		const exchange = await suiClient.getObject({
+			id: TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0],
+			options: {
+				showType: true,
+			},
+		});
+
+		const exchangePackageId = parseStructTag(exchange.data!.type!).address;
+
+		const wal = tx.moveCall({
+			package: exchangePackageId,
+			module: "wal_exchange",
+			function: "exchange_all_for_wal",
+			arguments: [
+				tx.object(TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0]),
+				coinWithBalance({
+					balance: BigInt(MIST_PER_SUI) / BigInt(2),
+				}),
+			],
+		});
+
+		tx.transferObjects([wal], keypair.toSuiAddress());
+
+		const { digest } = await suiClient.signAndExecuteTransaction({
+			transaction: tx,
+			signer: keypair,
+		});
+
+		await suiClient.waitForTransaction({
+			digest,
+			options: {
+				showEffects: true,
+			},
+		});
+	}
+
+	return keypair;
+}
+
+export async function storeBlob(encryptedData: Uint8Array, numEpochs: number) {
+  const { blobId } = await walrusClient.writeBlob({
+    blob: encryptedData,
+    deletable: false,
+    epochs: numEpochs,
+    signer: await getFundedKeypairSecretKey()
+  })
+
+  return blobId;
+}
+
+export async function getBlob(blobId: string) {
+  return await walrusClient.readBlob({ blobId });
 }
 
 export async function getDataset(id: string): Promise<DatasetObject> {

@@ -7,17 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { getWalrusPublisherUrl } from "@/lib/utils";
 import DatasetInput from "@/components/dataset-input";
 import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import { fromHex, MIST_PER_SUI, toHex } from "@mysten/sui/utils";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
-import { getModels, generatePreview, generateSyntheticData, getPrice } from "@/lib/actions";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
 import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT, UNITS_PER_USDC } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
+import { getModels, generatePreview, generateSyntheticData, getPrice, storeBlob } from "@/lib/actions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -206,13 +205,6 @@ export default function CreatePage() {
       data
     })
     return encryptedBytes;
-  }
-
-  const storeBlob = async (data: Uint8Array, numEpochs: number) => {
-    return fetch(`${getWalrusPublisherUrl(`/v1/blobs?epochs=${numEpochs}`, "service1")}`, {
-      method: "PUT",
-      body: data
-    }).then((res) => res.json()).then((info) => info.id);
   }
 
   const encryptAndStoreDataset = async (dataset: SyntheticDataResultItem[], numEpochs: number, encrypt: boolean) => {
