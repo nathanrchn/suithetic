@@ -371,7 +371,7 @@ async function getFundedKeypairSecretKey() {
 			},
 		});
 
-		const exchangePackageId = parseStructTag(exchange.data?.type!).address;
+		const exchangePackageId = parseStructTag(exchange.data!.type!).address;
 
 		const wal = tx.moveCall({
 			package: exchangePackageId,
