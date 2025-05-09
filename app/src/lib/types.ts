@@ -52,3 +52,9 @@ export type DatasetObject = {
   };
   signatures: string[];
 }
+
+export type DatasetListedEventObject = {
+  dataset: string;
+  kiosk: string;
+  version: number;
+}
