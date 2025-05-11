@@ -13,7 +13,7 @@
     "@hookform/resolvers": "^5.0.1",
     "@mysten/dapp-kit": "^0.16.2",
     "@mysten/kiosk": "^0.12.5",
-    "@mysten/seal": "github:nathanrchn/seal",
+    "@mysten/seal": "^0.4.2",
     "@mysten/sui": "^1.29.1",
     "@mysten/walrus": "^0.0.21",
     "@radix-ui/react-dialog": "^1.1.11",

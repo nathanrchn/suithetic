@@ -95,7 +95,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         },
       }
     );
-  }, [currentAccount, suiClient, sealClient, signPersonalMessage]);
+  }, [currentAccount]);
 
   useEffect(() => {
     if (id) {
@@ -138,7 +138,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         console.error("Failed to get blob:", error);
         setIsLoading(false);
       });
-  }, [dataset, currentAccount, decryptBlob]);
+  }, [dataset, currentAccount]);
 
   useEffect(() => {
     if (decryptedBytes) {

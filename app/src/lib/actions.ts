@@ -345,11 +345,9 @@ export const getPrice = async (): Promise<number> => {
 async function getFundedKeypairSecretKey() {
 	const keypair = TESTNET_KEYPAIR;
 
-	const balance = await suiClient.getBalance({
-		owner: keypair.toSuiAddress(),
-	});
-
-  console.log(balance);
+	// const balance = await suiClient.getBalance({
+	// 	owner: keypair.toSuiAddress(),
+	// });
 
 	// if (BigInt(balance.totalBalance) < MIST_PER_SUI) {
 	// 	await requestSuiFromFaucetV2({

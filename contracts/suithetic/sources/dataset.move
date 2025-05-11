@@ -1,184 +1,208 @@
 module suithetic::dataset {
     use sui::event;
-    use std::string;
-    use sui::sui::SUI;
-    use sui::package::claim;
+    use usdc::usdc::USDC;
     use std::string::String;
     use sui::coin::{Self, Coin};
-    use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
-    use sui::transfer_policy::{Self, TransferPolicy, TransferRequest};
+    use sui::package::claim_and_keep;
+    use sui::balance::{Self, Balance};
     
     const ENoAccess: u64 = 0;
-    const EInvalidDataset: u64 = 1;
-    const EInsufficientAmount: u64 = 2;
+    const EDatasetNotPublic: u64 = 1;
+    const EIncorrectAmount: u64 = 2;
     const EAlreadyLockedDataset: u64 = 3;
-    const EBlobIdNotSet: u64 = 4;
-    const EMetadataNotSet: u64 = 5;
 
-    public struct RoyaltyRule has drop {}
-    
-    public struct RoyaltyConfig has store, drop {
-        amount_bp: u16,
+    /// Visibility of a dataset.
+    /// 
+    /// 0 - Public (sellable).
+    /// 1 - Private (non-sellable).
+    public struct Visibility has store, drop {
+        inner: u16,
     }
 
+    /// Contains the metadata of the original Hugging Face dataset.
+    public struct HFDatasetMetadata has store {
+        /// The path to the dataset on Hugging Face.
+        path: String,
+        /// The config of the dataset.
+        config: String,
+        /// The split of the dataset.
+        split: String,
+        /// The revision of the dataset (the commit hash).
+        revision: String,
+    }
+
+    /// Contains the metadata of the dataset.
     public struct DatasetMetadata has store {
-        name: Option<String>,
+        /// The number of rows in the dataset.
         num_rows: Option<u64>,
+        /// The number of tokens in the dataset.
         num_tokens: Option<u64>,
-        description: Option<String>,
     }
 
+    /// Contains the metadata of the model used to generate the dataset.
+    public struct ModelMetadata has store {
+        /// The name of the model.
+        name: String,
+        /// The task small id used to generate the dataset.
+        task_small_id: u64,
+        /// The node small id used to generate the dataset.
+        node_small_id: u64,
+        /// The price per one million compute units of the model.
+        price_per_one_million_compute_units: u64,
+        /// The max number of compute units of the model.
+        max_num_compute_units: u64,
+    }
+
+    /// Contains the stats of the dataset
+    public struct DatasetStats has store {
+        /// The number of downloads of the dataset.
+        num_downloads: u64,
+    }
+
+    /// Represents a dataset.
     public struct Dataset has key, store {
         id: UID,
+        /// The version of the dataset. If the version is 0, the dataset is not locked.
+        /// If the version is greater than 0, the dataset is locked and is ready to be downloaded.
+        version: u64,
+        /// The owner of the dataset.
         owner: address,
-        creator: address,
-        version: u64,
+        /// The name of the dataset.
+        name: String,
+        /// The description of the dataset.
+        description: Option<String>,
+        /// The price of the dataset. This is the price in USDC.
+        /// The value is set to 0 if the dataset is private (non-sellable).
+        price: u64,
+        /// The visibility of the dataset.
+        visibility: Visibility,
+        /// The blob id of the dataset on the Walrus network.
         blob_id: Option<String>,
+        /// The metadata of the dataset.
         metadata: DatasetMetadata,
-        signatures: Option<vector<String>>,
+        /// The metadata of the original Hugging Face dataset.
+        hf_metadata: HFDatasetMetadata,
+        /// The stats of the dataset.
+        stats: DatasetStats,
+        /// The balance of the dataset.
+        balance: Balance<USDC>,
+        /// The allowlist of the dataset.
+        /// This list is used to decrypt the dataset.
+        allowlist: vector<address>,
+        /// The metadata of the model used to generate the dataset.
+        model_metadata: ModelMetadata,
     }
 
-    public struct DatasetListedEvent has copy, drop {
+    /// Emitted when a dataset is locked.
+    public struct DatasetLockedEvent has copy, drop {
+        /// The unique identifier of the dataset.
         dataset: ID,
-        kiosk: ID,
-        version: u64,
-    }
-
-    public struct DatasetPurchasedEvent has copy, drop {
-        dataset: ID,
+        /// The version of the dataset.
         version: u64,
     }
 
     public struct DATASET has drop {}
 
-    #[allow(lint(share_owned))]
     fun init(otw: DATASET, ctx: &mut TxContext) {
-        let publisher = claim(otw, ctx);
-
-        let (mut dataset_policy, dataset_policy_cap) = transfer_policy::new<Dataset>(&publisher, ctx);
-        transfer_policy::add_rule(RoyaltyRule {}, &mut dataset_policy, &dataset_policy_cap, RoyaltyConfig { amount_bp: 100 });
-
-        transfer::public_share_object(dataset_policy);
-        transfer::public_transfer(dataset_policy_cap, ctx.sender());
-
-        transfer::public_transfer(publisher, ctx.sender());
+        claim_and_keep(otw, ctx);
     }
 
-    public fun mint_dataset(ctx: &mut TxContext): Dataset {
+    public fun mint_dataset(
+        hf_path: String,
+        hf_config: String,
+        hf_split: String,
+        hf_revision: String,
+        visibility: u16,
+        name: String,
+        description: String,
+        price: u64,
+        model_name: String,
+        model_task_small_id: u64,
+        model_node_small_id: u64,
+        model_price_per_one_million_compute_units: u64,
+        model_max_num_compute_units: u64,
+        ctx: &mut TxContext
+    ): Dataset {
         let dataset = Dataset {
             id: object::new(ctx),
-            owner: ctx.sender(),
-            creator: ctx.sender(),
-            blob_id: option::none(),
             version: 0,
+            owner: ctx.sender(),
+            name: name,
+            description: option::some(description),
+            price: price,
+            visibility: Visibility { inner: visibility },
+            blob_id: option::none(),
             metadata: DatasetMetadata {
-                name: option::none(),
                 num_rows: option::none(),
                 num_tokens: option::none(),
-                description: option::none(),
             },
-            signatures: option::none(),
+            hf_metadata: HFDatasetMetadata {
+                path: hf_path,
+                config: hf_config,
+                split: hf_split,
+                revision: hf_revision,
+            },
+            stats: DatasetStats {
+                num_downloads: 0,
+            },
+            balance: balance::zero(),
+            allowlist: vector::empty(),
+            model_metadata: ModelMetadata {
+                name: model_name,
+                task_small_id: model_task_small_id,
+                node_small_id: model_node_small_id,
+                price_per_one_million_compute_units: model_price_per_one_million_compute_units,
+                max_num_compute_units: model_max_num_compute_units,
+            },
         };
 
         dataset
     }
 
-    public fun lock_dataset(dataset: &mut Dataset, blob_id: String, name: String, num_rows: u64, num_tokens: u64, description: String, signatures: vector<String>) {
+    public fun lock_dataset(dataset: &mut Dataset, blob_id: String, num_rows: u64, num_tokens: u64) {
         assert!(dataset.version == 0, EAlreadyLockedDataset);
 
         dataset.blob_id = option::some(blob_id);
-        dataset.metadata.name = option::some(name);
         dataset.metadata.num_rows = option::some(num_rows);
         dataset.metadata.num_tokens = option::some(num_tokens);
-        dataset.metadata.description = option::some(description);
-        dataset.signatures = option::some(signatures);
 
         dataset.version = dataset.version + 1;
-    }
 
-
-    entry public fun get_dataset_blob_id(dataset: &Dataset): String {
-        let blob_id = dataset.blob_id.get_with_default(string::utf8(vector[]));
-
-        assert!(!blob_id.is_empty(), EBlobIdNotSet);
-
-        blob_id
-    }
-
-    entry public fun get_dataset_name(dataset: &Dataset): String {
-        let name = dataset.metadata.name.get_with_default(string::utf8(vector[]));
-
-        assert!(!name.is_empty(), EMetadataNotSet);
-
-        name
-    }
-
-    entry public fun get_dataset_num_rows(dataset: &Dataset): u64 {
-        let num_rows = dataset.metadata.num_rows.get_with_default(0);
-
-        assert!(num_rows > 0, EMetadataNotSet);
-
-        num_rows
-    }
-
-    entry public fun get_dataset_num_tokens(dataset: &Dataset): u64 {
-        let num_tokens = dataset.metadata.num_tokens.get_with_default(0);
-
-        assert!(num_tokens > 0, EMetadataNotSet);
-
-        num_tokens
-    }
-
-    entry public fun get_dataset_description(dataset: &Dataset): String {
-        let description = dataset.metadata.description.get_with_default(string::utf8(vector[]));
-
-        assert!(!description.is_empty(), EMetadataNotSet);
-
-        description
-    }
-
-    entry public fun place_and_list_dataset(dataset: Dataset, price: u64, kiosk: &mut Kiosk, cap: &KioskOwnerCap) {
-        let dataset_id = object::id(&dataset);
-        let dataset_version = dataset.version;
-
-        kiosk::place_and_list(kiosk, cap, dataset, price);
-
-        event::emit(DatasetListedEvent {
-            dataset: dataset_id,
-            kiosk: object::id(kiosk),
-            version: dataset_version,
-        });
-    }
-
-    entry public fun purchase_dataset(dataset: address, kiosk: &mut Kiosk, payment: Coin<SUI>, policy: &TransferPolicy<Dataset>, ctx: &mut TxContext) {
-        let (mut dataset, request) = kiosk::purchase<Dataset>(kiosk, object::id_from_address(dataset), payment);
-
-        transfer_policy::confirm_request<Dataset>(policy, request);
-
-        let new_owner = ctx.sender();
-
-        event::emit(DatasetPurchasedEvent {
-            dataset: object::id(&dataset),
+        event::emit(DatasetLockedEvent {
+            dataset: object::id(dataset),
             version: dataset.version,
         });
-
-        dataset.owner = new_owner;
-        dataset.version = dataset.version + 1;
-        transfer::public_transfer(dataset, new_owner);
     }
 
-    public fun payRoyalty(dataset: &Dataset, policy: &TransferPolicy<Dataset>, request: &mut TransferRequest<Dataset>, payment: Coin<SUI>) {
-        assert!(object::id(dataset) == request.item(), EInvalidDataset);
+    public fun download_dataset(self: &mut Dataset, payment: Coin<USDC>, ctx: &mut TxContext) {
+        assert!(self.visibility.inner == 0, EDatasetNotPublic);
 
-        let paid = transfer_policy::paid(request);
+        let amount = coin::value(&payment);
+        assert!(amount == self.price, EIncorrectAmount);
 
-        let config: &RoyaltyConfig = transfer_policy::get_rule(RoyaltyRule {}, policy);
-        let amount = (((paid as u128) * (config.amount_bp as u128) / 10_000) as u64);
+        coin::put(&mut self.balance, payment);
 
-        assert!(coin::value(&payment) == amount, EInsufficientAmount);
+        self.stats.num_downloads = self.stats.num_downloads + 1;
+        self.allowlist.push_back(ctx.sender());
+    }
 
-        transfer::public_transfer(payment, dataset.owner);
-        transfer_policy::add_receipt(RoyaltyRule {}, request)
+    public fun change_visibility(self: &mut Dataset, visibility: u16, ctx: &mut TxContext) {
+        assert!(self.owner == ctx.sender(), ENoAccess);
+
+        self.visibility.inner = visibility;
+    }
+
+    public fun change_price(self: &mut Dataset, price: u64, ctx: &mut TxContext) {
+        assert!(self.owner == ctx.sender(), ENoAccess);
+
+        self.price = price;
+    }
+
+    public fun withdraw_balance(self: &mut Dataset, ctx: &mut TxContext): Coin<USDC> {
+        assert!(self.owner == ctx.sender(), ENoAccess);
+
+        let amount = self.balance.value();
+        coin::take(&mut self.balance, amount, ctx)
     }
 
     fun approve_internal(id: vector<u8>, dataset: &Dataset, caller: address): bool {
@@ -186,7 +210,7 @@ module suithetic::dataset {
             return false
         };
 
-        dataset.owner == caller
+        dataset.visibility.inner == 0 || dataset.owner == caller || dataset.allowlist.contains(&caller)
     }
 
     entry fun seal_approve(id: vector<u8>, dataset: &Dataset, ctx: &TxContext) {

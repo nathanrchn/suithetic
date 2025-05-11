@@ -7,7 +7,7 @@ import DatasetCard from "@/components/dataset-card";
 import { TESTNET_PACKAGE_ID } from "@/lib/constants";
 import { Transaction } from "@mysten/sui/transactions";
 import { KioskClient, KioskOwnerCap, Network } from "@mysten/kiosk";
-import { useSuiClient, useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { useSuiClient, useCurrentAccount, useSignAndExecuteTransaction, useSuiClientQuery } from "@mysten/dapp-kit";
 
 export default function Home() {
   const [kioskIds, setKioskIds] = useState<string[]>([]);
@@ -30,6 +30,14 @@ export default function Home() {
         },
       }),
   });
+
+  const { data: names } = useSuiClientQuery(
+    "resolveNameServiceNames",
+    { address: "0xc640b846e5e6e72a77e16d4714115eb670a5814c7ce398f134b44fcc204cfccf" },
+    { enabled: true }
+  );
+
+  console.log("names", names);
 
   const handlePlaceAndListDatasetAttempt = async (datasetId: string, price: string, address: string) => {
     const tx = new Transaction();
