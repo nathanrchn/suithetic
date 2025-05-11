@@ -1,9 +1,9 @@
 module suithetic::dataset {
     use sui::event;
+    use sui::package;
     use usdc::usdc::USDC;
     use std::string::String;
     use sui::coin::{Self, Coin};
-    use sui::package::claim_and_keep;
     use sui::balance::{Self, Balance};
     
     const ENoAccess: u64 = 0;
@@ -104,7 +104,7 @@ module suithetic::dataset {
     public struct DATASET has drop {}
 
     fun init(otw: DATASET, ctx: &mut TxContext) {
-        claim_and_keep(otw, ctx);
+        package::claim_and_keep(otw, ctx);
     }
 
     public fun mint_dataset(
@@ -206,11 +206,12 @@ module suithetic::dataset {
     }
 
     fun approve_internal(id: vector<u8>, dataset: &Dataset, caller: address): bool {
-        if (!is_prefix(dataset.id.to_bytes(), id)) {
+        // Disallow the caller to decrypt the dataset if it is private.
+        if (!is_prefix(dataset.id.to_bytes(), id) || dataset.visibility.inner == 1) {
             return false
         };
 
-        dataset.visibility.inner == 0 || dataset.owner == caller || dataset.allowlist.contains(&caller)
+        dataset.owner == caller || dataset.allowlist.contains(&caller)
     }
 
     entry fun seal_approve(id: vector<u8>, dataset: &Dataset, ctx: &TxContext) {
