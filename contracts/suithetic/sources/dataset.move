@@ -1,11 +1,11 @@
 module suithetic::dataset {
     use sui::event;
-    use sui::package;
     use usdc::usdc::USDC;
     use std::string::String;
     use sui::coin::{Self, Coin};
     use sui::balance::{Self, Balance};
     
+    /// Error codes.
     const ENoAccess: u64 = 0;
     const EDatasetNotPublic: u64 = 1;
     const EIncorrectAmount: u64 = 2;
@@ -101,12 +101,8 @@ module suithetic::dataset {
         version: u64,
     }
 
-    public struct DATASET has drop {}
-
-    fun init(otw: DATASET, ctx: &mut TxContext) {
-        package::claim_and_keep(otw, ctx);
-    }
-
+    /// Method to mint a dataset. This should happens before encrypting the dataset
+    /// bacause we need to know the ID of the dataset before encrypting it.
     public fun mint_dataset(
         hf_path: String,
         hf_config: String,
@@ -159,6 +155,8 @@ module suithetic::dataset {
         dataset
     }
 
+    /// Method to lock the dataset with the blob id and the number of rows and tokens.
+    /// We use this method to add the generated data to the dataset.
     public fun lock_dataset(dataset: &mut Dataset, blob_id: String, num_rows: u64, num_tokens: u64) {
         assert!(dataset.version == 0, EAlreadyLockedDataset);
 
@@ -166,7 +164,7 @@ module suithetic::dataset {
         dataset.metadata.num_rows = option::some(num_rows);
         dataset.metadata.num_tokens = option::some(num_tokens);
 
-        dataset.version = dataset.version + 1;
+        dataset.version = 1;
 
         event::emit(DatasetLockedEvent {
             dataset: object::id(dataset),
@@ -174,6 +172,7 @@ module suithetic::dataset {
         });
     }
 
+    /// Method to download the dataset. A dataset can be downloaded by anyone if it is public.
     public fun download_dataset(self: &mut Dataset, payment: Coin<USDC>, ctx: &mut TxContext) {
         assert!(self.visibility.inner == 0, EDatasetNotPublic);
 
@@ -214,6 +213,7 @@ module suithetic::dataset {
         dataset.owner == caller || dataset.allowlist.contains(&caller)
     }
 
+    /// Definition of the `seal_approve` function to use Seal.
     entry fun seal_approve(id: vector<u8>, dataset: &Dataset, ctx: &TxContext) {
         assert!(approve_internal(id, dataset, ctx.sender()), ENoAccess);
     }
