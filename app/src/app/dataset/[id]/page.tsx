@@ -276,7 +276,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
     const dataToDownload = parsedData.map(item => item.row);
     const jsonString = JSON.stringify(dataToDownload, null, 2);
     const blob = new Blob([jsonString], { type: "application/json" });
-    let filename = dataset.name ? `${dataset.name.replace(/\s+/g, '_').replace(/[^a-z0-9_.-]/gi, '')}.json` : `${dataset.id}.json`;
+    const filename = dataset.name ? `${dataset.name.replace(/\s+/g, '_').replace(/[^a-z0-9_.-]/gi, '')}.json` : `${dataset.id}.json`;
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
