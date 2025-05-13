@@ -83,6 +83,13 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
     fetchDatasetData();
   }, [fetchDatasetData]);
 
+  useEffect(() => {
+    setDecryptedBytes(null);
+    setParsedData(null);
+    setFeatures([]);
+    setError(null);
+  }, [dataset?.blobId, currentAccount?.address]);
+
   const decryptBlob = useCallback(async (data: Uint8Array, datasetObj: DatasetObject) => {
     if (!currentAccount || !suiClient || !sealClient || !datasetObj || !datasetObj.blobId) {
       setIsLoading(false);
@@ -146,24 +153,16 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
   }, [currentAccount, suiClient, sealClient, signPersonalMessage]);
 
   useEffect(() => {
-    if (!dataset || !dataset.blobId) {
-      setDecryptedBytes(null);
-      setParsedData(null);
-      setFeatures([]);
-      return;
-    }
-
-    if (!currentAccount) {
-      setDecryptedBytes(null);
-      setParsedData(null);
-      setFeatures([]);
+    if (!dataset || !dataset.blobId || !currentAccount) {
       setIsLoading(false);
       return;
     }
-    
-    setDecryptedBytes(null);
-    setParsedData(null);
-    setFeatures([]);
+
+    if (decryptedBytes) {
+      setIsLoading(false);
+      return;
+    }
+
     setError(null);
     setIsLoading(true);
 
@@ -178,9 +177,12 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
       .catch((err) => {
         console.error("Failed to get blob:", err);
         setError(`Failed to load blob: ${err.message}`);
+        setDecryptedBytes(null);
+        setParsedData(null);
+        setFeatures([]);
         setIsLoading(false);
       });
-  }, [dataset, currentAccount, decryptBlob]);
+  }, [dataset, currentAccount, decryptBlob, decryptedBytes]);
 
   useEffect(() => {
     if (decryptedBytes) {

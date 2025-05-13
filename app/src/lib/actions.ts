@@ -458,7 +458,7 @@ export async function getDataset(id: string): Promise<DatasetObject> {
     throw new Error(`Dataset object ${id} not found or is not a Move object.`);
   }
 
-  return _mapRawObjectToDatasetObject(result.data);
+  return _mapRawObjectToDatasetObject(result);
 }
 
 export async function getListedDatasets(): Promise<DatasetObject[]> {
