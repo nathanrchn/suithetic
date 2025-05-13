@@ -15,7 +15,7 @@ module suithetic::dataset {
     /// 
     /// 0 - Public (sellable).
     /// 1 - Private (non-sellable).
-    public struct Visibility has store, drop {
+    public struct Visibility has store, copy, drop {
         inner: u16,
     }
 
@@ -99,6 +99,8 @@ module suithetic::dataset {
         dataset: ID,
         /// The version of the dataset.
         version: u64,
+        /// The visibility of the dataset.
+        visibility: Visibility,
     }
 
     /// Method to mint a dataset. This should happens before encrypting the dataset
@@ -169,6 +171,7 @@ module suithetic::dataset {
         event::emit(DatasetLockedEvent {
             dataset: object::id(dataset),
             version: dataset.version,
+            visibility: dataset.visibility,
         });
     }
 
@@ -205,8 +208,7 @@ module suithetic::dataset {
     }
 
     fun approve_internal(id: vector<u8>, dataset: &Dataset, caller: address): bool {
-        // Disallow the caller to decrypt the dataset if it is private.
-        if (!is_prefix(dataset.id.to_bytes(), id) || dataset.visibility.inner == 1) {
+        if (!is_prefix(dataset.id.to_bytes(), id)) {
             return false
         };
 
