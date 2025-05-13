@@ -8,18 +8,18 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { fromHex, toHex } from "@mysten/sui/utils";
 import { Textarea } from "@/components/ui/textarea";
 import DatasetInput from "@/components/dataset-input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
-import { fromHex, MIST_PER_SUI, toHex } from "@mysten/sui/utils";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
+import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT } from "@/lib/constants";
+import { getModels, generatePreview, generateSyntheticData, storeBlob } from "@/lib/actions";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
-import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT, UNITS_PER_USDC } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
-import { getModels, generatePreview, generateSyntheticData, getPrice, storeBlob } from "@/lib/actions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -33,6 +33,9 @@ const formSchema = z.object({
   isStructured: z.boolean(),
   jsonSchema: z.string().optional(),
   prompt: z.string().includes("{input}"),
+  visibility: z.coerce.number().int().min(0).max(1),
+  description: z.string().optional(),
+  price: z.coerce.number().min(0).optional(),
 }).refine(data => {
   if (data.isStructured) {
     if (!data.jsonSchema || data.jsonSchema.trim() === "") {
@@ -48,6 +51,14 @@ const formSchema = z.object({
 }, {
   message: "Valid JSON schema is required for structured output.",
   path: ["jsonSchema"],
+}).refine(data => {
+  if (data.visibility === 0 && (data.price === undefined || data.price < 0)) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Price must be a non-negative number for public datasets.",
+  path: ["price"],
 });
 
 export default function CreatePage() {
@@ -100,6 +111,9 @@ export default function CreatePage() {
       isStructured: false,
       jsonSchema: "",
       prompt: "",
+      visibility: 0,
+      description: "",
+      price: 0,
     },
     mode: "onChange",
   });
@@ -109,7 +123,7 @@ export default function CreatePage() {
 
   useEffect(() => {
     const currentMaxTokens = form.getValues("maxTokens");
-    if (selectedModel && typeof currentMaxTokens === 'number' && currentMaxTokens > selectedModel.max_num_compute_units) {
+    if (selectedModel && typeof currentMaxTokens === "number" && currentMaxTokens > selectedModel.max_num_compute_units) {
       form.setValue("maxTokens", selectedModel.max_num_compute_units, { shouldValidate: true });
     }
   }, [selectedModel, form]);
@@ -170,9 +184,8 @@ export default function CreatePage() {
       return;
     }
 
-    const suiPrice = await getPrice();
     const megaTokens = values.maxTokens / 1_000_000;
-    const roundedGenerationSuiAmount = Math.ceil(suiPrice * (currentModel.price_per_one_million_compute_units / UNITS_PER_USDC) * megaTokens * Number(MIST_PER_SUI));
+    const roundedGenerationSuiAmount = Math.ceil(currentModel.price_per_one_million_compute_units * megaTokens);
 
     const tx = new Transaction();
     const [generationCoin] = tx.splitCoins(tx.gas, [roundedGenerationSuiAmount]);
@@ -189,6 +202,8 @@ export default function CreatePage() {
     const modelTaskSmallId = 0; 
     const modelNodeSmallId = 0;
 
+    const finalPrice = values.visibility === 1 ? 0 : values.price || 0;
+
     const datasetObject = tx.moveCall({
       target: `${TESTNET_PACKAGE_ID}::dataset::mint_dataset`,
       arguments: [
@@ -196,10 +211,10 @@ export default function CreatePage() {
         tx.pure.string(dataset.config),
         tx.pure.string(dataset.split),
         tx.pure.string(hfRevision),
-        tx.pure.u16(0),
+        tx.pure.u16(values.visibility),
         tx.pure.string(values.datasetName),
-        tx.pure.string(""),
-        tx.pure.u64(0),
+        tx.pure.string(values.description || ""),
+        tx.pure.u64(finalPrice),
         tx.pure.string(currentModel.id),
         tx.pure.u64(modelTaskSmallId),
         tx.pure.u64(modelNodeSmallId),
@@ -442,25 +457,9 @@ export default function CreatePage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>2. Configure Generation Parameters</CardTitle>
-                    <CardDescription>Set up the model and how data should be generated. The dataset name will be used when minting your dataset on-chain.</CardDescription>
+                    <CardDescription>Select a model and configure its generation parameters.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="datasetName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Dataset Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="My Awesome AI Dataset" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            This name will be used to identify your dataset on-chain.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
@@ -655,7 +654,116 @@ export default function CreatePage() {
                 
                 <Card>
                   <CardHeader>
-                    <CardTitle>4. Generate Full Dataset</CardTitle>
+                    <CardTitle>4. Finalize Dataset Details</CardTitle>
+                    <CardDescription>
+                      Provide the final details for your dataset before minting it on-chain.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="datasetName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dataset Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="My Awesome AI Dataset" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            This name will be used to identify your dataset on-chain.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dataset Description (Optional)</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="A brief description of your dataset..."
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Provide an optional description for your dataset.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="visibility"
+                        render={({ field }) => (
+                          <FormItem className="space-y-2">
+                            <FormLabel>Dataset Visibility</FormLabel>
+                            <Select 
+                              onValueChange={(value) => field.onChange(parseInt(value, 10))} 
+                              defaultValue={String(field.value)}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select visibility" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="0">Public (Sellable)</SelectItem>
+                                <SelectItem value="1">Private (Not Sellable)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Public datasets can be discovered and purchased by others.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      {form.watch("visibility") === 0 && (
+                        <FormField
+                          control={form.control}
+                          name="price"
+                          render={({ field }) => (
+                            <FormItem className="space-y-2">
+                              <FormLabel>Price (in MIST)</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number"
+                                  min="0"
+                                  placeholder="e.g., 1000000 for 1 SUI"
+                                  {...field}
+                                  value={field.value ?? ""}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    if (val === "") {
+                                      field.onChange(undefined);
+                                    } else {
+                                      const num = parseInt(val, 10);
+                                      field.onChange(isNaN(num) ? undefined : num);
+                                    }
+                                  }}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Set the price for accessing your public dataset (in MIST). 1 SUI = 1,000,000,000 MIST.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>5. Generate Full Dataset</CardTitle>
                     <CardDescription>
                       Once you're satisfied with the test, generate the complete synthetic dataset.
                     </CardDescription>

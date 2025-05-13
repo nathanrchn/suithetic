@@ -16,6 +16,5 @@ export const TESTNET_KEYPAIR = Ed25519Keypair.fromSecretKey(
   "suiprivkey1qzmcxscyglnl9hnq82crqsuns0q33frkseks5jw0fye3tuh83l7e6ajfhxx",
 );
 
-export const UNITS_PER_USDC = 1_000_000;
 export const TESTNET_PACKAGE_ID = "0xf487e445081b7976f202522a211eb2bd2ca3736b406e07a5ce9f1f281529b0f0";
 export const TESTNET_SUITHETIC_OBJECT = "0xf5fdb50c45523942ca29e71f717c5784253dc55416330a681b619da0714163cb";
