@@ -416,20 +416,43 @@ export async function getDataset(id: string): Promise<DatasetObject> {
     }
   });
 
-  const content = result.data!.content! as any;
+  if (!result.data || !result.data.content || result.data.content.dataType !== 'moveObject') {
+    throw new Error(`Dataset object ${id} not found or is not a Move object.`);
+  }
+
+  const content = result.data.content as any;
   const fields = content.fields;
 
   return {
     id: id,
+    version: Number(fields.version),
     owner: fields.owner,
-    creator: fields.creator,
-    version: fields.version,
+    name: fields.name,
+    description: fields.description,
+    price: Number(fields.price),
+    visibility: {
+      inner: Number(fields.visibility.fields.inner),
+    },
     blobId: fields.blob_id,
     metadata: {
-      name: fields.metadata.fields.name,
       numRows: fields.metadata.fields.num_rows,
       numTokens: fields.metadata.fields.num_tokens,
     },
-    signatures: fields.signatures,
-  }
+    hfMetadata: {
+      path: fields.hf_metadata.fields.path,
+      config: fields.hf_metadata.fields.config,
+      split: fields.hf_metadata.fields.split,
+      revision: fields.hf_metadata.fields.revision,
+    },
+    stats: {
+      numDownloads: fields.stats.fields.num_downloads,
+    },
+    modelMetadata: {
+      name: fields.model_metadata.fields.name,
+      taskSmallId: fields.model_metadata.fields.task_small_id,
+      nodeSmallId: fields.model_metadata.fields.node_small_id,
+      pricePerOneMillionComputeUnits: fields.model_metadata.fields.price_per_one_million_compute_units,
+      maxNumComputeUnits: fields.model_metadata.fields.max_num_compute_units,
+    },
+  };
 }

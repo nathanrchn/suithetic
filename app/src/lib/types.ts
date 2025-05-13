@@ -21,11 +21,15 @@ export type GenerationConfig = {
 }
 
 export type SyntheticDataResultItem = {
+  input?: any;
+  data?: any;
   success: boolean;
-  data?: string;
-  usage?: { totalTokens: number; [key: string]: any };
-  input?: string;
   error?: string;
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+  };
   signature?: string;
 };
 
@@ -39,19 +43,48 @@ export type AtomaModel = {
   max_num_compute_units: number;
 }
 
+export type Visibility = {
+  inner: number;
+};
+
+export type HFDatasetMetadata = {
+  path: string;
+  config: string;
+  split: string;
+  revision: string;
+};
+
+export type DatasetOnChainMetadata = {
+  numRows: number;
+  numTokens: number;
+};
+
+export type ModelOnChainMetadata = {
+  name: string;
+  taskSmallId: number;
+  nodeSmallId: number;
+  pricePerOneMillionComputeUnits: number;
+  maxNumComputeUnits: number;
+};
+
+export type DatasetStats = {
+  numDownloads: number;
+};
+
 export type DatasetObject = {
   id: string;
-  owner: string;
-  creator: string;
   version: number;
+  owner: string;
+  name: string;
+  description?: string;
+  price: number;
+  visibility: Visibility;
   blobId: string;
-  metadata: {
-    name: string;
-    numRows: number;
-    numTokens: number;
-  };
-  signatures: string[];
-}
+  metadata: DatasetOnChainMetadata;
+  hfMetadata: HFDatasetMetadata;
+  stats: DatasetStats;
+  modelMetadata: ModelOnChainMetadata;
+};
 
 export type DatasetListedEventObject = {
   dataset: string;
