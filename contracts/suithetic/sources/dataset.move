@@ -207,30 +207,18 @@ module suithetic::dataset {
         coin::take(&mut self.balance, amount, ctx)
     }
 
-    fun approve_internal_allowlist(id: vector<u8>, dataset: &Dataset, caller: address): bool {
+    fun approve_internal(id: vector<u8>, dataset: &Dataset, caller: address): bool {
+        // Disallow the caller to decrypt the dataset if it is private.
         if (!is_prefix(dataset.id.to_bytes(), id)) {
             return false
         };
 
-        dataset.allowlist.contains(&caller)
+        dataset.owner == caller || dataset.allowlist.contains(&caller)
     }
 
-    fun approve_internal_owner(id: vector<u8>, dataset: &Dataset, caller: address): bool {
-        if (!is_prefix(dataset.id.to_bytes(), id)) {
-            return false
-        };
-
-        dataset.owner == caller
-    }
-
-    /// Definition of the `seal_approve_allowlist` function to use Seal.
-    entry fun seal_approve_allowlist(id: vector<u8>, dataset: &Dataset, ctx: &TxContext) {
-        assert!(approve_internal_allowlist(id, dataset, ctx.sender()), ENoAccess);
-    }
-
-    /// Definition of the `seal_approve_owner` function to use Seal.
-    entry fun seal_approve_owner(id: vector<u8>, dataset: &Dataset, ctx: &TxContext) {
-        assert!(approve_internal_owner(id, dataset, ctx.sender()), ENoAccess);
+    /// Definition of the `seal_approve` function to use Seal.
+    entry fun seal_approve(id: vector<u8>, dataset: &Dataset, ctx: &TxContext) {
+        assert!(approve_internal(id, dataset, ctx.sender()), ENoAccess);
     }
 
     fun is_prefix(prefix: vector<u8>, word: vector<u8>): bool {
