@@ -1,9 +1,11 @@
 "use client";
 
 import * as z from "zod";
+import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,12 +17,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
-import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT } from "@/lib/constants";
 import { getModels, generatePreview, generateSyntheticData, storeBlob } from "@/lib/actions";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT, MIST_PER_USDC, TESTNET_USDC_TYPE } from "@/lib/constants";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -81,6 +83,7 @@ export default function CreatePage() {
 
   const MAX_PREVIEW_ATTEMPTS = 5;
 
+  const router = useRouter();
   const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();
   const sealClient = new SealClient({
@@ -131,7 +134,7 @@ export default function CreatePage() {
   const handleTestGeneration = async () => {
     if (!dataset) return;
     if (previewAttempts >= MAX_PREVIEW_ATTEMPTS) {
-      console.log("Max preview attempts reached.");
+      toast.warning("Preview Limit Reached", { description: "You have reached the maximum number of preview attempts." });
       return;
     }
     
@@ -142,7 +145,7 @@ export default function CreatePage() {
     const currentModel = models.find(m => m.id === modelId);
 
     if (!currentModel) {
-      console.error("Model not selected for test generation.");
+      toast.error("Test Generation Failed", { description: "Model not selected for test generation." });
       setIsPreviewLoading(false);
       return;
     }
@@ -175,12 +178,22 @@ export default function CreatePage() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!dataset || !currentAccount?.address) {
-      console.error("Dataset or current account not available for generation.");
+      toast.error("Generation Failed", { description: "Dataset or current account not available for generation." });
       return;
     }
     const currentModel = models.find(m => m.id === values.modelId);
     if (!currentModel) {
-      console.error("Model not found for generation.");
+      toast.error("Generation Failed", { description: "Model not found for generation." });
+      return;
+    }
+
+    const { data: coins } = await suiClient.getCoins({
+      owner: currentAccount.address,
+      coinType: TESTNET_USDC_TYPE,
+    });
+
+    if (coins.length === 0) {
+      toast.error("Generation Failed", { description: "No USDC coins found for the current account." });
       return;
     }
 
@@ -188,7 +201,7 @@ export default function CreatePage() {
     const roundedGenerationSuiAmount = Math.ceil(currentModel.price_per_one_million_compute_units * megaTokens);
 
     const tx = new Transaction();
-    const [generationCoin] = tx.splitCoins(tx.gas, [roundedGenerationSuiAmount]);
+    const [generationCoin] = tx.splitCoins(coins[0].coinObjectId, [roundedGenerationSuiAmount]);
 
     tx.moveCall({
       target: `${TESTNET_PACKAGE_ID}::suithetic::add_to_balance`,
@@ -202,7 +215,7 @@ export default function CreatePage() {
     const modelTaskSmallId = 0; 
     const modelNodeSmallId = 0;
 
-    const finalPrice = values.visibility === 1 ? 0 : values.price || 0;
+    const finalPrice = values.visibility === 1 ? 0 : (values.price || 0) * MIST_PER_USDC;
 
     const datasetObject = tx.moveCall({
       target: `${TESTNET_PACKAGE_ID}::dataset::mint_dataset`,
@@ -229,6 +242,7 @@ export default function CreatePage() {
       if (result.effects?.created?.[0]?.reference?.objectId) {
         setDatasetObjectId(result.effects.created[0].reference.objectId);
       } else {
+        toast.error("Transaction Error", { description: "Failed to get dataset object ID from transaction result." });
         console.error("Failed to get dataset object ID from transaction result:", result);
         return;
       }
@@ -245,7 +259,7 @@ export default function CreatePage() {
         };
   
         if (!dataset) {
-          console.error("Client: Dataset is null or undefined, cannot start generation.");
+          toast.error("Dataset Generation Error", { description: "Dataset not selected or invalid." });
           setSyntheticDatasetOutput([
             { success: false, error: "Dataset not selected or invalid." }
           ]);
@@ -255,14 +269,12 @@ export default function CreatePage() {
   
         setSyntheticDatasetOutput([]); 
   
-        console.log("Client: Calling generateSyntheticData with dataset:", dataset, "and config:", generationConfig);
         const results = await generateSyntheticData(dataset, generationConfig, {});
-        console.log("Client: Received all results:", results);
         setSyntheticDatasetOutput(results);
   
       } catch (error: any) {
-        console.error("Client: An unexpected error occurred during dataset generation:", error);
         const errorMessage = error.message || "An unknown error occurred on the server.";
+        toast.error("Dataset Generation Error", { description: `Client-side error: ${errorMessage}` });
         setSyntheticDatasetOutput([
           { success: false, error: `Client-side error: ${errorMessage}` }
         ]);
@@ -271,6 +283,7 @@ export default function CreatePage() {
       }
     },
     onError: (error: any) => {
+      toast.error("Transaction Failed", { description: error.message || "An unknown error occurred during the transaction." });
       console.error("Transaction failed:", error);
     }
   });
@@ -338,12 +351,12 @@ export default function CreatePage() {
     if (syntheticDatasetOutput.length === 0) return;
     setIsStoringDataset(true);
     try {
-      console.log(`Encrypting and storing dataset for ${numEpochs} epochs.`);
       const blobId = await encryptAndStoreDataset(syntheticDatasetOutput, numEpochs, true);
       setDatasetBlobId(blobId);
-      console.log("Dataset stored successfully:", blobId);
+      toast("Upload Successful", { description: `Dataset stored successfully with ID: ${blobId}` });
       setUploadCompleted(true);
-    } catch (error) {
+    } catch (error: any) {
+      toast.error("Upload Failed", { description: error.message || "Failed to encrypt and store dataset." });
       console.error("Failed to encrypt and store dataset:", error);
     } finally {
       setIsStoringDataset(false);
@@ -361,7 +374,7 @@ export default function CreatePage() {
   const handleLockDataset = async () => {
     const currentDatasetName = form.getValues("datasetName");
     if (!datasetBlobId || !currentDatasetName.trim()) {
-      console.error("Dataset Blob ID or Dataset Name is missing for locking.");
+      toast.error("Locking Failed", { description: "Dataset Blob ID or Dataset Name is missing for locking." });
       return;
     }
     console.log(`Attempting to lock dataset: ${currentDatasetName} with blob ID: ${datasetBlobId}`);
@@ -378,10 +391,8 @@ export default function CreatePage() {
         arguments: [
           tx.object(datasetObjectId!),
           tx.pure.string(datasetBlobId!),
-          tx.pure.string(currentDatasetName),
           tx.pure.u64(numRows),
           tx.pure.u64(numTokens),
-          tx.pure.vector("string", syntheticDatasetOutput.map((item) => item.signature!))
         ]
       })
 
@@ -389,12 +400,17 @@ export default function CreatePage() {
         onSuccess: () => {
           handleCancelDialog();
           form.reset();
+          toast("Dataset Locked", { description: `Dataset "${currentDatasetName}" has been locked successfully.` });
+
+          router.push(`/dataset/${datasetObjectId!}`);
         },
         onError: (error: any) => {
+          toast.error("Locking Failed", { description: `Failed to lock dataset (on-chain transaction): ${error.message || "Unknown error"}` });
           console.error("Failed to lock dataset (on-chain transaction):", error);
         }
       });
-    } catch (error) {
+    } catch (error: any) {
+      toast.error("Locking Failed", { description: `Failed to lock dataset (simulated): ${error.message || "Unknown error"}` });
       console.error("Failed to lock dataset (simulated):", error);
     } finally {
       setIsLocking(false);
@@ -621,7 +637,6 @@ export default function CreatePage() {
                         (form.getValues("isStructured") && !form.getValues("jsonSchema")) || 
                         isPreviewLoading || 
                         previewAttempts >= MAX_PREVIEW_ATTEMPTS ||
-                        !form.formState.isValid ||
                         !currentAccount
                       }
                       onClick={handleTestGeneration}
@@ -730,27 +745,18 @@ export default function CreatePage() {
                           name="price"
                           render={({ field }) => (
                             <FormItem className="space-y-2">
-                              <FormLabel>Price (in MIST)</FormLabel>
+                              <FormLabel>Price (in USDC)</FormLabel>
                               <FormControl>
                                 <Input 
                                   type="number"
                                   min="0"
-                                  placeholder="e.g., 1000000 for 1 SUI"
+                                  placeholder="e.g., 1 USDC"
                                   {...field}
                                   value={field.value ?? ""}
-                                  onChange={e => {
-                                    const val = e.target.value;
-                                    if (val === "") {
-                                      field.onChange(undefined);
-                                    } else {
-                                      const num = parseInt(val, 10);
-                                      field.onChange(isNaN(num) ? undefined : num);
-                                    }
-                                  }}
                                 />
                               </FormControl>
                               <FormDescription>
-                                Set the price for accessing your public dataset (in MIST). 1 SUI = 1,000,000,000 MIST.
+                                Set the price for accessing your public dataset (in USDC). 1 USDC = 1,000,000 MIST.
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -806,7 +812,8 @@ export default function CreatePage() {
                                   tokens: item.usage?.totalTokens,
                                   signature: item.signature,
                                 })), null, 2);
-                              } catch (e) {
+                              } catch (e: any) {
+                                toast.error("Display Error", { description: "Error displaying dataset output. Check console." });
                                 console.error("Error during JSON.stringify in render:", e, "Data was:", syntheticDatasetOutput);
                                 return "Error displaying data. Check console.";
                               }
@@ -858,7 +865,7 @@ export default function CreatePage() {
                       )}
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={handleCancelDialog} disabled={isStoringDataset}>
+                      <Button variant="outline" onClick={handleCancelDialog} disabled={isStoringDataset || isLocking}>
                         Cancel
                       </Button>
                       {!uploadCompleted ? (

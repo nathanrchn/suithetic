@@ -88,6 +88,6 @@ export type DatasetObject = {
 
 export type DatasetListedEventObject = {
   dataset: string;
-  kiosk: string;
   version: number;
+  visibility: Visibility;
 }
