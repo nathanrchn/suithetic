@@ -1,6 +1,8 @@
 "use client";
 
+import * as z from "zod";
 import { Loader2 } from "lucide-react";
+import { useForm } from "react-hook-form";
 import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -8,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import DatasetInput from "@/components/dataset-input";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import { fromHex, MIST_PER_SUI, toHex } from "@mysten/sui/utils";
@@ -18,23 +21,43 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import { getModels, generatePreview, generateSyntheticData, getPrice, storeBlob } from "@/lib/actions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+
+const formSchema = z.object({
+  datasetName: z.string().min(3, "Dataset name must be at least 3 characters."),
+  modelId: z.string().min(1, "Model is required."),
+  maxTokens: z.coerce.number().min(1, "Max tokens must be at least 1."),
+  inputFeature: z.string().min(1, "Input feature is required."),
+  isStructured: z.boolean(),
+  jsonSchema: z.string().optional(),
+  prompt: z.string().includes("{input}"),
+}).refine(data => {
+  if (data.isStructured) {
+    if (!data.jsonSchema || data.jsonSchema.trim() === "") {
+      return false;
+    }
+    try {
+      JSON.parse(data.jsonSchema);
+    } catch (e) {
+      return false;
+    }
+  }
+  return true;
+}, {
+  message: "Valid JSON schema is required for structured output.",
+  path: ["jsonSchema"],
+});
 
 export default function CreatePage() {
   const [data, setData] = useState<any[]>([]);
-  const [prompt, setPrompt] = useState<string>("");
   const [numEpochs, setNumEpochs] = useState<number>(1);
   const [features, setFeatures] = useState<string[]>([]);
   const [models, setModels] = useState<AtomaModel[]>([]);
-  const [maxTokens, setMaxTokens] = useState<number>(100);
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [isLocking, setIsLocking] = useState<boolean>(false);
-  const [datasetName, setDatasetName] = useState<string>("");
-  const [model, setModel] = useState<AtomaModel | null>(null);
-  const [inputFeature, setInputFeature] = useState<string>("");
   const [dataset, setDataset] = useState<HFDataset | null>(null);
-  const [isStructured, setIsStructured] = useState<boolean>(false);
-  const [jsonSchema, setJsonSchema] = useState<string | null>(null);
   const [previewAttempts, setPreviewAttempts] = useState<number>(0);
   const [uploadCompleted, setUploadCompleted] = useState<boolean>(false);
   const [datasetBlobId, setDatasetBlobId] = useState<string | null>(null);
@@ -67,6 +90,30 @@ export default function CreatePage() {
       }),
   });
 
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      datasetName: "",
+      modelId: "",
+      maxTokens: 100,
+      inputFeature: "",
+      isStructured: false,
+      jsonSchema: "",
+      prompt: "",
+    },
+    mode: "onChange",
+  });
+
+  const selectedModelId = form.watch("modelId");
+  const selectedModel = models.find(m => m.id === selectedModelId) || null;
+
+  useEffect(() => {
+    const currentMaxTokens = form.getValues("maxTokens");
+    if (selectedModel && typeof currentMaxTokens === 'number' && currentMaxTokens > selectedModel.max_num_compute_units) {
+      form.setValue("maxTokens", selectedModel.max_num_compute_units, { shouldValidate: true });
+    }
+  }, [selectedModel, form]);
+
   const handleTestGeneration = async () => {
     if (!dataset) return;
     if (previewAttempts >= MAX_PREVIEW_ATTEMPTS) {
@@ -77,11 +124,20 @@ export default function CreatePage() {
     setIsPreviewLoading(true);
     setPreviewAttempts(prev => prev + 1);
     
+    const { modelId, inputFeature, jsonSchema, maxTokens, prompt, isStructured } = form.getValues();
+    const currentModel = models.find(m => m.id === modelId);
+
+    if (!currentModel) {
+      console.error("Model not selected for test generation.");
+      setIsPreviewLoading(false);
+      return;
+    }
+
     try {
       const generationConfig: GenerationConfig = {
-        model: model!.id,
+        model: currentModel.id,
         inputFeature,
-        jsonSchema,
+        jsonSchema: isStructured && jsonSchema ? jsonSchema : null,
         maxTokens,
         prompt
       };
@@ -103,12 +159,20 @@ export default function CreatePage() {
     }
   };
 
-  const handleGenerateDataset = async () => {
-    if (!dataset) return;
-    const suiPrice = await getPrice();
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!dataset || !currentAccount?.address) {
+      console.error("Dataset or current account not available for generation.");
+      return;
+    }
+    const currentModel = models.find(m => m.id === values.modelId);
+    if (!currentModel) {
+      console.error("Model not found for generation.");
+      return;
+    }
 
-    const megaTokens = maxTokens / 1_000_000;
-    const roundedGenerationSuiAmount = Math.ceil(suiPrice * (model!.price_per_one_million_compute_units / UNITS_PER_USDC) * megaTokens * Number(MIST_PER_SUI));
+    const suiPrice = await getPrice();
+    const megaTokens = values.maxTokens / 1_000_000;
+    const roundedGenerationSuiAmount = Math.ceil(suiPrice * (currentModel.price_per_one_million_compute_units / UNITS_PER_USDC) * megaTokens * Number(MIST_PER_SUI));
 
     const tx = new Transaction();
     const [generationCoin] = tx.splitCoins(tx.gas, [roundedGenerationSuiAmount]);
@@ -120,25 +184,49 @@ export default function CreatePage() {
         generationCoin
       ],
     });
+    
+    const hfRevision = (dataset as any).revision || "main"; 
+    const modelTaskSmallId = 0; 
+    const modelNodeSmallId = 0;
 
     const datasetObject = tx.moveCall({
       target: `${TESTNET_PACKAGE_ID}::dataset::mint_dataset`,
+      arguments: [
+        tx.pure.string(dataset.path),
+        tx.pure.string(dataset.config),
+        tx.pure.string(dataset.split),
+        tx.pure.string(hfRevision),
+        tx.pure.u16(0),
+        tx.pure.string(values.datasetName),
+        tx.pure.string(""),
+        tx.pure.u64(0),
+        tx.pure.string(currentModel.id),
+        tx.pure.u64(modelTaskSmallId),
+        tx.pure.u64(modelNodeSmallId),
+        tx.pure.u64(currentModel.price_per_one_million_compute_units),
+        tx.pure.u64(currentModel.max_num_compute_units),
+      ]
     });
 
-    tx.transferObjects([datasetObject], tx.pure.address(currentAccount!.address!));
+    tx.transferObjects([datasetObject], tx.pure.address(currentAccount.address));
 
-    signAndExecuteTransaction({ transaction: tx }, { onSuccess: async (result) => {
-      setDatasetObjectId(result.effects!.created![0].reference.objectId!);
+    signAndExecuteTransaction({ transaction: tx }, { onSuccess: async (result: any) => {
+      if (result.effects?.created?.[0]?.reference?.objectId) {
+        setDatasetObjectId(result.effects.created[0].reference.objectId);
+      } else {
+        console.error("Failed to get dataset object ID from transaction result:", result);
+        return;
+      }
 
       setIsDatasetGenerationLoading(true);
     
       try {
         const generationConfig: GenerationConfig = {
-          model: model!.id,
-          inputFeature,
-          jsonSchema,
-          maxTokens,
-          prompt
+          model: currentModel.id,
+          inputFeature: values.inputFeature,
+          jsonSchema: values.isStructured && values.jsonSchema ? values.jsonSchema : null,
+          maxTokens: values.maxTokens,
+          prompt: values.prompt
         };
   
         if (!dataset) {
@@ -166,14 +254,19 @@ export default function CreatePage() {
       } finally {
         setIsDatasetGenerationLoading(false);
       }
-    }});
+    },
+    onError: (error: any) => {
+      console.error("Transaction failed:", error);
+    }
+  });
   };
 
   const sanitizeDataset = (dataset: SyntheticDataResultItem[]): Uint8Array => {
+    const { inputFeature } = form.getValues();
     const rows = dataset.map((item, index) => ({
       row_idx: index,
       row: {
-        [`${inputFeature}`]: item.input,
+        [`${inputFeature || 'input'}`]: item.input,
         "generated_output": item.data
       },
       truncated_cells: []
@@ -181,7 +274,7 @@ export default function CreatePage() {
 
     const jsonData = {
       features: [
-        { feature_idx: 0, name: inputFeature, type: { dtype: "string", _type: "Value" } },
+        { feature_idx: 0, name: inputFeature || 'input', type: { dtype: "string", _type: "Value" } },
         { feature_idx: 1, name: "generated_output", type: { dtype: "string", _type: "Value" } }
       ],
       rows: rows,
@@ -217,19 +310,6 @@ export default function CreatePage() {
     }
   }
 
-  const handleMaxTokensChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value, 10);
-    if (!isNaN(value) && value > 0) {
-      if (model) {
-        setMaxTokens(Math.min(value, model.max_num_compute_units));
-      } else {
-        setMaxTokens(value);
-      }
-    } else if (e.target.value === "") {
-      setMaxTokens(100);
-    }
-  }
-
   const handleEpochsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value, 10);
     if (!isNaN(value) && value > 0) {
@@ -260,16 +340,16 @@ export default function CreatePage() {
     setUploadCompleted(false);
     setSyntheticDatasetOutput([]);
     setNumEpochs(1);
-    setDatasetName("");
     setDatasetBlobId(null);
   };
 
   const handleLockDataset = async () => {
-    if (!datasetBlobId || !datasetName.trim()) {
+    const currentDatasetName = form.getValues("datasetName");
+    if (!datasetBlobId || !currentDatasetName.trim()) {
       console.error("Dataset Blob ID or Dataset Name is missing for locking.");
       return;
     }
-    console.log(`Attempting to lock dataset: ${datasetName} with blob ID: ${datasetBlobId}`);
+    console.log(`Attempting to lock dataset: ${currentDatasetName} with blob ID: ${datasetBlobId}`);
     try {
       setIsLocking(true);
 
@@ -283,16 +363,22 @@ export default function CreatePage() {
         arguments: [
           tx.object(datasetObjectId!),
           tx.pure.string(datasetBlobId!),
-          tx.pure.string(datasetName),
+          tx.pure.string(currentDatasetName),
           tx.pure.u64(numRows),
           tx.pure.u64(numTokens),
           tx.pure.vector("string", syntheticDatasetOutput.map((item) => item.signature!))
         ]
       })
 
-      await signAndExecuteTransaction({ transaction: tx });
-
-      handleCancelDialog();
+      signAndExecuteTransaction({ transaction: tx }, {
+        onSuccess: () => {
+          handleCancelDialog();
+          form.reset();
+        },
+        onError: (error: any) => {
+          console.error("Failed to lock dataset (on-chain transaction):", error);
+        }
+      });
     } catch (error) {
       console.error("Failed to lock dataset (simulated):", error);
     } finally {
@@ -320,316 +406,384 @@ export default function CreatePage() {
   useEffect(() => {
     if (syntheticDatasetOutput.length > 0 && !isDatasetGenerationLoading && !isUploadDialogOpen) {
       setUploadCompleted(false);
-      setDatasetName("");
       setIsUploadDialogOpen(true);
     }
   }, [syntheticDatasetOutput, isDatasetGenerationLoading, isUploadDialogOpen]);
 
   return (
-    <div className="flex flex-col items-center justify-center py-8 gap-6">
-      <div className="text-3xl font-bold">Create a Synthetic Dataset</div>
-      <div className="w-full max-w-4xl space-y-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>1. Select Your Dataset</CardTitle>
-            <CardDescription>Choose a Hugging Face dataset to use as a base.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DatasetInput 
-              dataset={dataset} 
-              setDataset={setDataset}
-            />
-            {dataset && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold mb-2">Dataset Preview</h3>
-                <div className="border rounded-md p-4 max-h-[400px] overflow-y-auto">
-                  <DatasetViewer features={features} data={data} />
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {dataset && (
-          <>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <div className="flex flex-col items-center justify-center py-8 gap-6">
+          <div className="text-3xl font-bold">Create a Synthetic Dataset</div>
+          <div className="w-full max-w-4xl space-y-8">
             <Card>
               <CardHeader>
-                <CardTitle>2. Configure Generation Parameters</CardTitle>
-                <CardDescription>Set up the model and how data should be generated.</CardDescription>
+                <CardTitle>1. Select Your Dataset</CardTitle>
+                <CardDescription>Choose a Hugging Face dataset to use as a base.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="model">Model</Label>
-                    <Select value={model?.id} onValueChange={(value) => setModel(models.find((model) => model.id === value) || null)} disabled={models.length === 0}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a model" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {models.map((model) => (
-                          <SelectItem key={model.id} value={model.id}>
-                            {model.id}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="maxTokens">Max Tokens</Label>
-                    <Input 
-                      id="maxTokens" 
-                      type="number" 
-                      min="1"
-                      value={maxTokens} 
-                      onChange={handleMaxTokensChange} 
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="inputFeature">Input Feature</Label>
-                    <Select value={inputFeature} onValueChange={setInputFeature}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select input feature" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {dataset.features.map((feature) => (
-                          <SelectItem key={feature} value={feature}>
-                            {feature}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="isStructured" className="flex items-center">Structured Output 
-                      <Switch id="isStructured" checked={isStructured} onCheckedChange={setIsStructured} className="ml-2"/>
-                    </Label>
-                  </div>
-                </div>
-                {isStructured && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2 mt-4">JSON Schema</h3>
-                    <div className="space-y-2">
-                      <Label htmlFor="jsonSchema">Schema Definition</Label>
-                      <Textarea 
-                        id="jsonSchema"
-                        placeholder='Enter JSON schema (e.g., {"type": "object", "properties": {...}})'
-                        className="min-h-[100px] font-mono text-sm"
-                        value={jsonSchema || ""}
-                        onChange={(e) => setJsonSchema(e.target.value)}
-                      />
-                      <p className="text-sm text-gray-500 mt-1">
-                        Define the structure of your output data using JSON Schema format.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>3. Define and Test Your Prompt</CardTitle>
-                <CardDescription>
-                  Write a prompt to guide the AI. Test it on a few samples before full generation. 
-                  You have {MAX_PREVIEW_ATTEMPTS - previewAttempts} attempts remaining.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <Label htmlFor="prompt" className="text-lg font-semibold">Generation Prompt</Label>
-                  <Textarea 
-                    id="prompt"
-                    placeholder="Enter the prompt that will guide the generation task..."
-                    className="min-h-[100px] mt-2"
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                  />
-                  <p className="text-sm text-gray-500 mt-2">
-                    Use {"{input}"} to reference the input feature in your prompt.
-                  </p>
-                </div>
-
-                <Button 
-                  className="w-full" 
-                  size="lg"
-                  disabled={
-                    !model || 
-                    !inputFeature || 
-                    !prompt || 
-                    (isStructured && !jsonSchema) || 
-                    isPreviewLoading || 
-                    previewAttempts >= MAX_PREVIEW_ATTEMPTS
-                  }
-                  onClick={handleTestGeneration}
-                >
-                  {isPreviewLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating Preview...
-                    </>
-                  ) : previewAttempts >= MAX_PREVIEW_ATTEMPTS ? (
-                    "Preview Limit Reached"
-                  ) : (
-                    `Test Generation With 3 Rows (${MAX_PREVIEW_ATTEMPTS - previewAttempts} left)`
-                  )}
-                </Button>
-
-                {previewData.length > 0 && inputFeature && (
+              <CardContent>
+                <DatasetInput 
+                  dataset={dataset} 
+                  setDataset={setDataset}
+                />
+                {dataset && (
                   <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-2">Preview Results</h3>
+                    <h3 className="text-lg font-semibold mb-2">Dataset Preview</h3>
                     <div className="border rounded-md p-4 max-h-[400px] overflow-y-auto">
-                      <DatasetViewer 
-                        features={[inputFeature, "generated_output"]}
-                        data={previewData}
-                      />
+                      <DatasetViewer features={features} data={data} />
                     </div>
                   </div>
                 )}
               </CardContent>
             </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>4. Generate Full Dataset</CardTitle>
-                <CardDescription>
-                  Once you're satisfied with the test, generate the complete synthetic dataset.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <Button 
-                  className="w-full" 
-                  size="lg"
-                  variant="default"
-                  disabled={
-                    !model || 
-                    !inputFeature || 
-                    !prompt || 
-                    (isStructured && !jsonSchema) || 
-                    isDatasetGenerationLoading
+
+            {dataset && (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>2. Configure Generation Parameters</CardTitle>
+                    <CardDescription>Set up the model and how data should be generated. The dataset name will be used when minting your dataset on-chain.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="datasetName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dataset Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="My Awesome AI Dataset" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            This name will be used to identify your dataset on-chain.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="modelId"
+                        render={({ field }) => (
+                          <FormItem className="space-y-2">
+                            <FormLabel>Model</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={models.length === 0}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a model" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {models.map((m) => (
+                                  <SelectItem key={m.id} value={m.id}>
+                                    {m.id}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="maxTokens"
+                        render={({ field }) => (
+                          <FormItem className="space-y-2">
+                            <FormLabel>Max Tokens</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="1"
+                                max={selectedModel ? selectedModel.max_num_compute_units : undefined}
+                                {...field}
+                              />
+                            </FormControl>
+                            {selectedModel && <FormDescription>Max for selected model: {selectedModel.max_num_compute_units}</FormDescription>}
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="inputFeature"
+                        render={({ field }) => (
+                          <FormItem className="space-y-2">
+                            <FormLabel>Input Feature</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!dataset?.features?.length}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select input feature" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {dataset?.features.map((feature) => (
+                                  <SelectItem key={feature} value={feature}>
+                                    {feature}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="isStructured"
+                        render={({ field }) => (
+                          <FormItem className="space-y-2">
+                            <FormLabel className="flex items-center">Structured Output
+                              <FormControl>
+                                <Switch 
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  className="ml-2"
+                                />
+                              </FormControl>
+                            </FormLabel>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    {form.watch("isStructured") && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2 mt-4">JSON Schema</h3>
+                         <FormField
+                            control={form.control}
+                            name="jsonSchema"
+                            render={({ field }) => (
+                              <FormItem className="space-y-2">
+                                <FormLabel htmlFor="jsonSchema">Schema Definition</FormLabel>
+                                <FormControl>
+                                  <Textarea 
+                                    id="jsonSchema"
+                                    placeholder='Enter JSON schema (e.g., {"type": "object", "properties": {...}})'
+                                    className="min-h-[100px] font-mono text-sm"
+                                    {...field}
+                                    value={field.value || ""}
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  Define the structure of your output data using JSON Schema format.
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>3. Define and Test Your Prompt</CardTitle>
+                    <FormDescription>
+                      Write a prompt to guide the AI. Test it on a few samples before full generation. 
+                      You have {MAX_PREVIEW_ATTEMPTS - previewAttempts} attempts remaining.
+                    </FormDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="prompt"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-lg font-semibold">Generation Prompt</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Enter the prompt that will guide the generation task..."
+                              className="min-h-[100px] mt-2"
+                              {...field}
+                            />
+                          </FormControl>
+                           <FormDescription>
+                            Use {"{input}"} to reference the input feature in your prompt.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <Button 
+                      type="button"
+                      className="w-full" 
+                      size="lg"
+                      disabled={
+                        !form.getValues("modelId") || 
+                        !form.getValues("inputFeature") || 
+                        !form.getValues("prompt") || 
+                        (form.getValues("isStructured") && !form.getValues("jsonSchema")) || 
+                        isPreviewLoading || 
+                        previewAttempts >= MAX_PREVIEW_ATTEMPTS ||
+                        !form.formState.isValid ||
+                        !currentAccount
+                      }
+                      onClick={handleTestGeneration}
+                    >
+                      {isPreviewLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generating Preview...
+                        </>
+                      ) : previewAttempts >= MAX_PREVIEW_ATTEMPTS ? (
+                        "Preview Limit Reached"
+                      ) : (
+                        `Test Generation With 3 Rows (${MAX_PREVIEW_ATTEMPTS - previewAttempts} left)`
+                      )}
+                    </Button>
+
+                    {previewData.length > 0 && form.getValues("inputFeature") && (
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold mb-2">Preview Results</h3>
+                        <div className="border rounded-md p-4 max-h-[400px] overflow-y-auto">
+                          <DatasetViewer 
+                            features={[form.getValues("inputFeature"), "generated_output"]}
+                            data={previewData}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle>4. Generate Full Dataset</CardTitle>
+                    <CardDescription>
+                      Once you're satisfied with the test, generate the complete synthetic dataset.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <Button 
+                      type="submit"
+                      className="w-full" 
+                      size="lg"
+                      variant="default"
+                      disabled={
+                        isDatasetGenerationLoading || 
+                        !form.formState.isValid ||
+                        !dataset ||
+                        !currentAccount
+                      }
+                    >
+                      {isDatasetGenerationLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generating Full Dataset...
+                        </>
+                      ) : (
+                        "Generate Full Dataset"
+                      )}
+                    </Button>
+
+                    {syntheticDatasetOutput.length > 0 && (
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold mb-2">Full Synthetic Dataset Output</h3>
+                        <div className="border rounded-md p-4 max-h-[600px] overflow-y-auto">
+                          <pre className="text-sm">
+                            {(() => {
+                              try {
+                                return JSON.stringify(syntheticDatasetOutput.map(item => ({ 
+                                  input: item.input,
+                                  output: item.data,
+                                  success: item.success,
+                                  error: item.error,
+                                  tokens: item.usage?.totalTokens,
+                                  signature: item.signature,
+                                })), null, 2);
+                              } catch (e) {
+                                console.error("Error during JSON.stringify in render:", e, "Data was:", syntheticDatasetOutput);
+                                return "Error displaying data. Check console.";
+                              }
+                            })()}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Dialog open={isUploadDialogOpen} onOpenChange={(isOpen) => {
+                  if (!isOpen) {
+                    handleCancelDialog();
+                  } else {
+                    setIsUploadDialogOpen(true);
                   }
-                  onClick={handleGenerateDataset}
-                >
-                  {isDatasetGenerationLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating Full Dataset...
-                    </>
-                  ) : (
-                    "Generate Full Dataset"
-                  )}
-                </Button>
-
-                {syntheticDatasetOutput.length > 0 && (
-                   <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-2">Full Synthetic Dataset Output</h3>
-                    <div className="border rounded-md p-4 max-h-[600px] overflow-y-auto">
-                      <pre className="text-sm">
-                        {(() => {
-                          try {
-                            return JSON.stringify(syntheticDatasetOutput.map(item => ({ 
-                              input: item.input,
-                              output: item.data,
-                              success: item.success,
-                              error: item.error,
-                              tokens: item.usage?.totalTokens,
-                              signature: item.signature,
-                            })), null, 2);
-                          } catch (e) {
-                            console.error("Error during JSON.stringify in render:", e, "Data was:", syntheticDatasetOutput);
-                            return "Error displaying data. Check console.";
-                          }
-                        })()}
-                      </pre>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Dialog open={isUploadDialogOpen} onOpenChange={(isOpen) => {
-              if (!isOpen) {
-                handleCancelDialog();
-              } else {
-                setIsUploadDialogOpen(true);
-              }
-            }}>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>{uploadCompleted ? "Lock Dataset" : "Upload Synthetic Dataset"}</DialogTitle>
-                  <DialogDescription>
-                    {uploadCompleted 
-                      ? "Enter a name for your dataset to lock it on-chain."
-                      : "The generated dataset is ready. Enter the number of epochs for which this dataset will be available."
-                    }
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  {!uploadCompleted ? (
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="epochs" className="text-right">
-                        Epochs
-                      </Label>
-                      <Input
-                        id="epochs"
-                        type="number"
-                        min="1"
-                        value={numEpochs}
-                        onChange={handleEpochsChange}
-                        className="col-span-3"
-                        disabled={isStoringDataset}
-                      />
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="datasetName" className="text-right">
-                        Name
-                      </Label>
-                      <Input
-                        id="datasetName"
-                        value={datasetName}
-                        onChange={(e) => setDatasetName(e.target.value)}
-                        placeholder="My Awesome Dataset"
-                        className="col-span-3"
-                      />
-                    </div>
-                  )}
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={handleCancelDialog} disabled={isStoringDataset}>
-                    Cancel
-                  </Button>
-                  {!uploadCompleted ? (
-                    <Button type="submit" onClick={handleConfirmUpload} disabled={isStoringDataset || numEpochs <= 0}>
-                      {isStoringDataset ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Uploading...
-                        </>
+                }}>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>{uploadCompleted ? "Lock Dataset" : "Upload Synthetic Dataset"}</DialogTitle>
+                      <DialogDescription>
+                        {uploadCompleted 
+                          ? `Dataset "${form.getValues("datasetName")}" is ready to be locked on-chain.`
+                          : "The generated dataset is ready. Enter the number of epochs for which this dataset will be available."
+                        }
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      {!uploadCompleted ? (
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="epochs" className="text-right">
+                            Epochs
+                          </Label>
+                          <Input
+                            id="epochs"
+                            type="number"
+                            min="1"
+                            value={numEpochs}
+                            onChange={handleEpochsChange}
+                            className="col-span-3"
+                            disabled={isStoringDataset}
+                          />
+                        </div>
                       ) : (
-                        "Confirm & Upload"
+                        <p className="text-sm text-center col-span-4">
+                          Dataset Name: <strong>{form.getValues("datasetName")}</strong>
+                        </p>
                       )}
-                    </Button>
-                  ) : (
-                    <Button type="submit" onClick={handleLockDataset} disabled={!datasetName.trim()}>
-                      {isLocking ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Locking...
-                        </>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={handleCancelDialog} disabled={isStoringDataset}>
+                        Cancel
+                      </Button>
+                      {!uploadCompleted ? (
+                        <Button type="submit" onClick={handleConfirmUpload} disabled={isStoringDataset || numEpochs <= 0}>
+                          {isStoringDataset ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            "Confirm & Upload"
+                          )}
+                        </Button>
                       ) : (
-                        "Lock Dataset"
+                        <Button type="submit" onClick={handleLockDataset} disabled={!form.getValues("datasetName").trim() || isLocking}>
+                          {isLocking ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Locking...
+                            </>
+                          ) : (
+                            "Lock Dataset"
+                          )}
+                        </Button>
                       )}
-                    </Button>
-                  )}
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </>
-        )}
-      </div>
-    </div>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </>
+            )}
+          </div>
+        </div>
+      </form>
+    </Form>
   );
 }
