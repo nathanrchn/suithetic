@@ -7,7 +7,8 @@ import DatasetCard from "@/components/dataset-card";
 import { TESTNET_PACKAGE_ID } from "@/lib/constants";
 import { Transaction } from "@mysten/sui/transactions";
 import { KioskClient, KioskOwnerCap, Network } from "@mysten/kiosk";
-import { useSuiClient, useCurrentAccount, useSignAndExecuteTransaction, useSuiClientQuery } from "@mysten/dapp-kit";
+import { getListedDatasets, getPersonalDatasets } from "@/lib/actions";
+import { useSuiClient, useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 
 export default function Home() {
   const [kioskIds, setKioskIds] = useState<string[]>([]);
@@ -30,14 +31,6 @@ export default function Home() {
         },
       }),
   });
-
-  const { data: names } = useSuiClientQuery(
-    "resolveNameServiceNames",
-    { address: "0xc640b846e5e6e72a77e16d4714115eb670a5814c7ce398f134b44fcc204cfccf" },
-    { enabled: true }
-  );
-
-  console.log("names", names);
 
   const handlePlaceAndListDatasetAttempt = async (datasetId: string, price: string, address: string) => {
     const tx = new Transaction();
@@ -67,9 +60,11 @@ export default function Home() {
     })
 
     signAndExecuteTransaction({ transaction: tx }, { onSuccess: () => {
-      getPersonalDatasets().then(datasets => {
-        setPersonalDatasets(datasets);
-      });
+      if (currentAccount) {
+        getPersonalDatasets(currentAccount.address).then(datasets => {
+          setPersonalDatasets(datasets);
+        });
+      }
   
       getListedDatasets().then(datasets => {
         setListedDatasets(datasets);
@@ -82,83 +77,6 @@ export default function Home() {
     return await kioskClient.getOwnedKiosks({ address: currentAccount.address! });
   }
 
-  const getPersonalDatasets = async (): Promise<DatasetObject[]> => {
-    if (!currentAccount) return [];
-
-    const res = await suiClient.getOwnedObjects({
-      owner: currentAccount.address,
-      filter: {
-        MoveModule: {
-          module: "dataset",
-          package: TESTNET_PACKAGE_ID
-        }
-      }
-    });
-
-    const objects = await suiClient.multiGetObjects({
-      ids: res.data.map((obj) => obj.data!.objectId),
-      options: {
-        showContent: true,
-      }
-    });
-
-    return objects.filter((obj) => {
-      const content = obj.data!.content! as any;
-      return content.fields.version > 0;
-    }).map((obj) => {
-      const content = obj.data!.content! as any;
-
-      return {
-        id: obj.data!.objectId,
-        owner: content.fields.owner,
-        creator: content.fields.creator,
-        version: content.fields.version,
-        metadata: {
-          name: content.fields.metadata.fields.name,
-          numRows: content.fields.metadata.fields.num_rows,
-          numTokens: content.fields.metadata.fields.num_tokens,
-        },
-        data: content.fields.data,
-        blobId: content.fields.blob_id,
-        signatures: content.fields.signatures,
-      }
-    });
-  }
-
-  const getListedDatasets = async (): Promise<DatasetObject[]> => {
-    const { data } = await suiClient.queryEvents({
-      query: {
-        MoveEventType: `${TESTNET_PACKAGE_ID}::dataset::DatasetListedEvent`
-      }
-    });
-
-    const objects = await suiClient.multiGetObjects({
-      ids: data.map((event) => (event.parsedJson as any).dataset),
-      options: {
-        showContent: true,
-      }
-    });
-
-    return objects.map((obj) => {
-      const content = obj.data!.content! as any;
-
-      return {
-        id: obj.data!.objectId,
-        owner: content.fields.owner,
-        creator: content.fields.creator,
-        version: content.fields.version,
-        metadata: {
-          name: content.fields.metadata.fields.name,
-          numRows: content.fields.metadata.fields.num_rows,
-          numTokens: content.fields.metadata.fields.num_tokens,
-        },
-        data: content.fields.data,
-        blobId: content.fields.blob_id,
-        signatures: content.fields.signatures,
-      }
-    });
-  }
-
   useEffect(() => {
     getListedDatasets().then(datasets => {
       setListedDatasets(datasets);
@@ -166,9 +84,11 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    getPersonalDatasets().then(datasets => {
-      setPersonalDatasets(datasets);
-    });
+    if (currentAccount) {
+      getPersonalDatasets(currentAccount.address).then(datasets => {
+        setPersonalDatasets(datasets);
+      });
+    }
   }, [currentAccount]);
 
   useEffect(() => {

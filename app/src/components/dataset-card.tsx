@@ -31,7 +31,7 @@ export default function DatasetCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{dataset.metadata.name}</CardTitle>
+        <CardTitle>{dataset.name}</CardTitle>
         <CardDescription>
           <Link href={getExplorerUrl(dataset.id, "object")} className="text-muted-foreground hover:text-primary">
             {shortAddress(dataset.id)}
@@ -50,11 +50,11 @@ export default function DatasetCard({
             </div>
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-500">Creator</p>
+            <p className="text-sm font-medium text-gray-500">Owner</p>
             <div className="flex items-center space-x-2">
-              <Avatar address={dataset.creator} />
-              <Link href={getExplorerUrl(dataset.creator, "address")} className="text-blue-600 hover:underline text-sm break-all" target="_blank" rel="noopener noreferrer">
-                {shortAddress(dataset.creator)}
+              <Avatar address={dataset.owner} />
+              <Link href={getExplorerUrl(dataset.owner, "address")} className="text-blue-600 hover:underline text-sm break-all" target="_blank" rel="noopener noreferrer">
+                {shortAddress(dataset.owner)}
               </Link>
             </div>
           </div>

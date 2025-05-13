@@ -76,7 +76,7 @@ export type DatasetObject = {
   version: number;
   owner: string;
   name: string;
-  description?: string;
+  description: string;
   price: number;
   visibility: Visibility;
   blobId: string;

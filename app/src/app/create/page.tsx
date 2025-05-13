@@ -353,7 +353,7 @@ export default function CreatePage() {
     try {
       const blobId = await encryptAndStoreDataset(syntheticDatasetOutput, numEpochs, true);
       setDatasetBlobId(blobId);
-      toast("Upload Successful", { description: `Dataset stored successfully with ID: ${blobId}` });
+      toast("Upload Successful", { description: `Dataset stored successfully with ID: ${blobId}`, classNames: { title: 'text-black dark:text-white', description: 'text-black dark:text-white' } });
       setUploadCompleted(true);
     } catch (error: any) {
       toast.error("Upload Failed", { description: error.message || "Failed to encrypt and store dataset." });
@@ -400,7 +400,7 @@ export default function CreatePage() {
         onSuccess: () => {
           handleCancelDialog();
           form.reset();
-          toast("Dataset Locked", { description: `Dataset "${currentDatasetName}" has been locked successfully.` });
+          toast("Dataset Locked", { description: `Dataset \"${currentDatasetName}\" has been locked successfully.`, classNames: { title: 'text-black dark:text-white', description: 'text-black dark:text-white' } });
 
           router.push(`/dataset/${datasetObjectId!}`);
         },
@@ -796,32 +796,6 @@ export default function CreatePage() {
                         "Generate Full Dataset"
                       )}
                     </Button>
-
-                    {syntheticDatasetOutput.length > 0 && (
-                      <div className="mt-6">
-                        <h3 className="text-lg font-semibold mb-2">Full Synthetic Dataset Output</h3>
-                        <div className="border rounded-md p-4 max-h-[600px] overflow-y-auto">
-                          <pre className="text-sm">
-                            {(() => {
-                              try {
-                                return JSON.stringify(syntheticDatasetOutput.map(item => ({ 
-                                  input: item.input,
-                                  output: item.data,
-                                  success: item.success,
-                                  error: item.error,
-                                  tokens: item.usage?.totalTokens,
-                                  signature: item.signature,
-                                })), null, 2);
-                              } catch (e: any) {
-                                toast.error("Display Error", { description: "Error displaying dataset output. Check console." });
-                                console.error("Error during JSON.stringify in render:", e, "Data was:", syntheticDatasetOutput);
-                                return "Error displaying data. Check console.";
-                              }
-                            })()}
-                          </pre>
-                        </div>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
 

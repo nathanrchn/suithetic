@@ -408,23 +408,12 @@ export async function getBlob(blobId: string) {
   return await walrusClient.readBlob({ blobId });
 }
 
-export async function getDataset(id: string): Promise<DatasetObject> {
-  const result = await suiClient.getObject({
-    id: id,
-    options: {
-      showContent: true,
-    }
-  });
-
-  if (!result.data || !result.data.content || result.data.content.dataType !== 'moveObject') {
-    throw new Error(`Dataset object ${id} not found or is not a Move object.`);
-  }
-
-  const content = result.data.content as any;
+const _mapRawObjectToDatasetObject = (rawObject: any): DatasetObject => {
+  const content = rawObject.data!.content! as any;
   const fields = content.fields;
 
   return {
-    id: id,
+    id: rawObject.data!.objectId,
     version: Number(fields.version),
     owner: fields.owner,
     name: fields.name,
@@ -455,4 +444,62 @@ export async function getDataset(id: string): Promise<DatasetObject> {
       maxNumComputeUnits: fields.model_metadata.fields.max_num_compute_units,
     },
   };
+};
+
+export async function getDataset(id: string): Promise<DatasetObject> {
+  const result = await suiClient.getObject({
+    id: id,
+    options: {
+      showContent: true,
+    }
+  });
+
+  if (!result.data || !result.data.content || result.data.content.dataType !== 'moveObject') {
+    throw new Error(`Dataset object ${id} not found or is not a Move object.`);
+  }
+
+  return _mapRawObjectToDatasetObject(result.data);
+}
+
+export async function getListedDatasets(): Promise<DatasetObject[]> {
+  const { data } = await suiClient.queryEvents({
+    query: {
+      MoveEventType: `${TESTNET_PACKAGE_ID}::dataset::DatasetListedEvent`
+    }
+  });
+
+  const objects = await suiClient.multiGetObjects({
+    ids: data.map((event) => (event.parsedJson as any).dataset),
+    options: {
+      showContent: true,
+    }
+  });
+
+  return objects.map(_mapRawObjectToDatasetObject);
+}
+
+export async function getPersonalDatasets(address: string): Promise<DatasetObject[]> {
+  if (!address) return [];
+
+  const res = await suiClient.getOwnedObjects({
+    owner: address,
+    filter: {
+      MoveModule: {
+        module: "dataset",
+        package: TESTNET_PACKAGE_ID
+      }
+    }
+  });
+
+  const objects = await suiClient.multiGetObjects({
+    ids: res.data.map((obj) => obj.data!.objectId),
+    options: {
+      showContent: true,
+    }
+  });
+
+  return objects.filter((obj) => {
+    const content = obj.data!.content! as any;
+    return content.fields.version > 0;
+  }).map(_mapRawObjectToDatasetObject);
 }

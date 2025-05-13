@@ -397,7 +397,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
             {renderDetailItem("Version", dataset.version)}
             <div>
                 <p className="text-sm text-gray-500 font-medium">Description</p>
-                <p className="text-lg text-gray-800 whitespace-pre-wrap">{dataset.description || "N/A"}</p>
+                <p className="text-lg text-gray-800 whitespace-pre-wrap">{dataset.description}</p>
             </div>
              {renderDetailItem("Blob ID", dataset.blobId ? shortAddress(dataset.blobId) : "N/A")}
           </CardContent>
@@ -419,8 +419,8 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         <Card className="lg:col-span-1">
           <CardHeader><CardTitle>On-Chain Metadata</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {renderDetailItem("Number of Rows", dataset.metadata.numRows?.toLocaleString() || "N/A")}
-            {renderDetailItem("Number of Tokens", dataset.metadata.numTokens?.toLocaleString() || "N/A")}
+            {renderDetailItem("Number of Rows", dataset.metadata.numRows?.toLocaleString())}
+            {renderDetailItem("Number of Tokens", dataset.metadata.numTokens?.toLocaleString())}
           </CardContent>
         </Card>
 
