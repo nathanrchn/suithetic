@@ -166,7 +166,10 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
       return;
     }
 
-    setError(null);
+    if (error) {
+      return;
+    }
+
     setIsLoading(true);
 
     getBlob(dataset.blobId)
