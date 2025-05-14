@@ -1,23 +1,22 @@
 "use client";
 
-import Link from "next/link";
 import { DatasetObject } from "@/lib/types";
 import { fromHex } from "@mysten/sui/utils";
-import { getExplorerUrl } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { getBlob, getDataset } from "@/lib/actions";
 import { TESTNET_PACKAGE_ID } from "@/lib/constants";
 import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import { EncryptedObject, SealClient } from "@mysten/seal";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { getAllowlistedKeyServers, SessionKey } from "@mysten/seal";
 import { use, useState, useEffect, useCallback, useMemo } from "react";
-import { Download, Edit3, AlertCircle, CheckCircle, Eye, EyeOff } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Download, Edit3, AlertCircle, CheckCircle, ExternalLink, FileText, Info, Server, Tag } from "lucide-react";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient, useSignPersonalMessage } from "@mysten/dapp-kit";
 
 export default function DatasetPage({ params }: { params: Promise<{ id: string }> }) {
@@ -57,8 +56,6 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         options: { showEffects: true },
       }),
   });
-
-  const shortAddress = (address: string) => address ? address.slice(0, 6) + "..." + address.slice(-4) : "N/A";
 
   const fetchDatasetData = useCallback(async () => {
     if (id) {
@@ -288,22 +285,6 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
   };
 
   const isOwner = currentAccount && dataset && currentAccount.address === dataset.owner;
-
-  const renderDetailItem = (label: string, value: string | number | undefined | null, isLink: boolean = false, linkPrefix?: string, linkType?: "object" | "address") => {
-    const displayValue = value === undefined || value === null ? "N/A" : String(value);
-    return (
-      <div>
-        <p className="text-sm text-gray-500 font-medium">{label}</p>
-        {isLink && value ? (
-          <Link href={getExplorerUrl(String(value), linkType || "object")} className="text-blue-600 hover:underline text-lg break-all" target="_blank" rel="noopener noreferrer">
-            {linkPrefix}{shortAddress(String(value))}
-          </Link>
-        ) : (
-          <p className="text-lg text-gray-800 break-all">{displayValue}</p>
-        )}
-      </div>
-    );
-  };
   
   if (isLoading && !dataset) {
     return <div className="container mx-auto p-4 text-center">Loading dataset metadata...</div>;
@@ -319,9 +300,17 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
 
   return (
     <div className="container mx-auto p-4 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">{dataset.name || "Dataset Details"}</h1>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex-grow">
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-3xl font-bold">{dataset.name || "Dataset Details"}</h1>
+            <Badge variant={dataset.visibility.inner === 0 ? "outline" : "secondary"}>
+              {dataset.visibility.inner === 0 ? "Public" : "Private"}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground text-sm">Owned by: {dataset.owner ? dataset.owner : "N/A"}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
           {isOwner && (
             <Button variant="outline" onClick={() => setIsEditing(!isEditing)} disabled={isProcessingTx}>
               <Edit3 size={18} className="mr-2" />
@@ -332,6 +321,17 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
              <Button onClick={handleDownload} variant="default" title="Download Decrypted Dataset as JSON" disabled={isLoading || isProcessingTx}>
                 <Download size={18} className="mr-2" /> Download
             </Button>
+          )}
+          {dataset.hfMetadata?.path && (
+            <a 
+              href={`https://huggingface.co/datasets/${dataset.hfMetadata.path}`} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View on Hugging Face
+            </a>
           )}
         </div>
       </div>
@@ -389,76 +389,158 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1">
-          <CardHeader><CardTitle>Core Information</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {renderDetailItem("Dataset Name", dataset.name)}
-            {renderDetailItem("Dataset ID", dataset.id, true, "", "object")}
-            {renderDetailItem("Owner", dataset.owner, true, "", "address")}
-            {renderDetailItem("Version", dataset.version)}
-            <div>
-                <p className="text-sm text-gray-500 font-medium">Description</p>
-                <p className="text-lg text-gray-800 whitespace-pre-wrap">{dataset.description}</p>
-            </div>
-             {renderDetailItem("Blob ID", dataset.blobId ? shortAddress(dataset.blobId) : "N/A")}
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+          <div className="flex flex-col gap-6">
+            <p className="text-base">{dataset.description || "No description provided."}</p>
 
-        <Card className="lg:col-span-1">
-          <CardHeader><CardTitle>Status & Financials</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <p className="text-sm text-gray-500 font-medium">Visibility</p>
-              <Badge variant={dataset.visibility.inner === 0 ? "default" : "secondary"} className="text-lg">
-                {dataset.visibility.inner === 0 ? <><Eye className="mr-2 h-4 w-4" />Public</> : <><EyeOff className="mr-2 h-4 w-4" />Private</>}
-              </Badge>
-            </div>
-            {renderDetailItem("Price (USDC)", dataset.price.toLocaleString())}
-          </CardContent>
-        </Card>
-        
-        <Card className="lg:col-span-1">
-          <CardHeader><CardTitle>On-Chain Metadata</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {renderDetailItem("Number of Rows", dataset.metadata.numRows?.toLocaleString())}
-            {renderDetailItem("Number of Tokens", dataset.metadata.numTokens?.toLocaleString())}
-          </CardContent>
-        </Card>
+            <Tabs defaultValue="overview">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="metadata">Metadata</TabsTrigger>
+                <TabsTrigger value="model">Model Info</TabsTrigger>
+              </TabsList>
+              <TabsContent value="overview" className="space-y-4 pt-4">
+                <Card>
+                  <CardHeader><CardTitle className="text-lg">Dataset Information</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Rows</p>
+                        <p className="text-lg">{dataset.metadata.numRows?.toLocaleString() ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Tokens</p>
+                        <p className="text-lg">{dataset.metadata.numTokens?.toLocaleString() ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Downloads</p>
+                        <p className="text-lg">{dataset.stats.numDownloads?.toLocaleString() ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Version</p>
+                        <p className="text-lg">{dataset.version ?? "N/A"}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="metadata" className="space-y-4 pt-4">
+                <Card>
+                  <CardHeader><CardTitle className="text-lg">Hugging Face Metadata</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Path</p>
+                        <p className="text-base font-mono">{dataset.hfMetadata?.path ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Config</p>
+                        <p className="text-base font-mono">{dataset.hfMetadata?.config ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Split</p>
+                        <p className="text-base font-mono">{dataset.hfMetadata?.split ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Revision</p>
+                        <p className="text-base font-mono">{dataset.hfMetadata?.revision ?? "N/A"}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="model" className="space-y-4 pt-4">
+                <Card>
+                  <CardHeader><CardTitle className="text-lg">Model Information</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Model Name</p>
+                        <p className="text-base">{dataset.modelMetadata?.name ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Task ID</p>
+                        <p className="text-base">{dataset.modelMetadata?.taskSmallId ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Node ID</p>
+                        <p className="text-base">{dataset.modelMetadata?.nodeSmallId ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Price per 1M Compute Units (USDC)</p>
+                        <p className="text-base">
+                          {dataset.modelMetadata?.pricePerOneMillionComputeUnits !== undefined 
+                            ? `$${Number(dataset.modelMetadata.pricePerOneMillionComputeUnits).toFixed(4)}`
+                            : "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Max Compute Units</p>
+                        <p className="text-base">
+                          {dataset.modelMetadata?.maxNumComputeUnits !== undefined 
+                            ? Number(dataset.modelMetadata.maxNumComputeUnits).toLocaleString() 
+                            : "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
 
-        <Card className="md:col-span-2 lg:col-span-3">
-          <CardHeader><CardTitle>Hugging Face Source</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
-            {renderDetailItem("HF Path", dataset.hfMetadata.path)}
-            {renderDetailItem("HF Config", dataset.hfMetadata.config)}
-            {renderDetailItem("HF Split", dataset.hfMetadata.split)}
-            {renderDetailItem("HF Revision", dataset.hfMetadata.revision)}
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-2 lg:col-span-3">
-          <CardHeader><CardTitle>Generation Model Details</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3">
-            {renderDetailItem("Model Name", dataset.modelMetadata.name)}
-            {renderDetailItem("Model Task Small ID", dataset.modelMetadata.taskSmallId)}
-            {renderDetailItem("Model Node Small ID", dataset.modelMetadata.nodeSmallId)}
-            {renderDetailItem("Price / 1M Compute Units (USDC units)", dataset.modelMetadata.pricePerOneMillionComputeUnits.toLocaleString())}
-            {renderDetailItem("Max Compute Units", dataset.modelMetadata.maxNumComputeUnits.toLocaleString())}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-1">
-          <CardHeader><CardTitle>Usage Stats</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {renderDetailItem("Downloads", dataset.stats.numDownloads.toLocaleString())}
-          </CardContent>
-        </Card>
+        <div className="lg:col-span-1">
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Dataset Details</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">ID</p>
+                    <p className="text-sm font-mono break-all">{dataset.id}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Tag className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">Blob ID</p>
+                    <p className="text-sm font-mono break-all">{dataset.blobId ?? "N/A"}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Server className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">Price</p>
+                    <p className="text-sm">
+                      {dataset.price > 0 
+                        ? `${dataset.price.toLocaleString()} MIST` 
+                        : "Free"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <FileText className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">Rows & Tokens</p>
+                    <p className="text-sm">
+                      {dataset.metadata.numRows?.toLocaleString() ?? "N/A"} rows, 
+                      {" "}{dataset.metadata.numTokens?.toLocaleString() ?? "N/A"} tokens
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
       
       {currentAccount && !isLoading && !error && !parsedData && dataset?.blobId && (
         <div className="p-4 border rounded-lg shadow bg-yellow-100 text-yellow-800 flex items-center">
           <AlertCircle className="mr-2 h-5 w-5" /> 
-          Attempted to load dataset content, but no data is available for display. This could be due to decryption issues, an empty dataset, or a problem parsing the content. Check console for errors.
+          Attempting to load dataset content, but no data is available for display. This could be due to decryption issues, an empty dataset, or a problem parsing the content. Check console for errors.
         </div>
       )}
 
