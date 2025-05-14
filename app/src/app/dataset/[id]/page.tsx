@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { DatasetObject } from "@/lib/types";
 import { fromHex } from "@mysten/sui/utils";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getBlob, getDataset } from "@/lib/actions";
-import { TESTNET_PACKAGE_ID } from "@/lib/constants";
+import { MIST_PER_USDC, TESTNET_PACKAGE_ID } from "@/lib/constants";
 import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import { EncryptedObject, SealClient } from "@mysten/seal";
@@ -18,7 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient, useSignPersonalMessage } from "@mysten/dapp-kit";
 import { Download, Edit3, AlertCircle, CheckCircle, ExternalLink, FileText, Info, Server, Tag, Loader2 } from "lucide-react";
-import Link from "next/link";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function DatasetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -26,10 +27,10 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [editablePrice, setEditablePrice] = useState<number>(0);
   const [parsedData, setParsedData] = useState<any[] | null>(null);
   const [dataset, setDataset] = useState<DatasetObject | null>(null);
   const [isProcessingTx, setIsProcessingTx] = useState<boolean>(false);
+  const [editablePrice, setEditablePrice] = useState<number | null>(null);
   const [editableVisibility, setEditableVisibility] = useState<number>(0);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [decryptedBytes, setDecryptedBytes] = useState<Uint8Array | null>(null);
@@ -245,7 +246,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
     if (dataset.price !== editablePrice) {
       tx.moveCall({
         target: `${TESTNET_PACKAGE_ID}::dataset::change_price`,
-        arguments: [tx.object(dataset.id), tx.pure.u64(editablePrice)],
+        arguments: [tx.object(dataset.id), tx.pure.u64(editablePrice! * MIST_PER_USDC)],
       });
       changesMade = true;
     }
@@ -326,10 +327,64 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {isOwner && (
-            <Button variant="outline" onClick={() => setIsEditing(!isEditing)} disabled={isProcessingTx}>
-              <Edit3 size={18} className="mr-2" />
-              {isEditing ? "Cancel Edit" : "Edit Details"}
-            </Button>
+            <Dialog open={isEditing} onOpenChange={setIsEditing}>
+              <DialogTrigger asChild>
+                <Button variant="outline" onClick={() => setIsEditing(true)} disabled={isProcessingTx}>
+                  <Edit3 size={18} className="mr-2" />
+                  Edit Details
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Dataset Details</DialogTitle>
+                  <DialogDescription>
+                    Modify the dataset's price and visibility.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="editableVisibility">Visibility</Label>
+                    <Select
+                      value={String(editableVisibility)}
+                      onValueChange={(value) => setEditableVisibility(Number(value))}
+                    >
+                      <SelectTrigger id="editableVisibility">
+                        <SelectValue placeholder="Select visibility" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">Public (Sellable)</SelectItem>
+                        <SelectItem value="1">Private (Not Sellable)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {editableVisibility === 0 && (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="editablePrice">Price (in USDC)</Label>
+                      <Input
+                        id="editablePrice"
+                        type="number"
+                        value={editablePrice ? editablePrice / MIST_PER_USDC : ""}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          if (isNaN(value)) {
+                            setEditablePrice(null);
+                          } else {
+                            setEditablePrice(value * MIST_PER_USDC);
+                          }
+                        }}
+                        min="0"
+                      />
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+                  <Button onClick={handleSaveChanges} disabled={isProcessingTx}>
+                    {isProcessingTx ? "Saving..." : "Save Changes"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           )}
           {parsedData && (
              <Button onClick={handleDownload} variant="default" title="Download Decrypted Dataset as JSON" disabled={isLoading || isProcessingTx}>
@@ -349,59 +404,6 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
           )}
         </div>
       </div>
-
-      {error && (
-        <div className="p-4 border rounded-lg shadow bg-red-100 text-red-700 flex items-center">
-          <AlertCircle className="mr-2 h-5 w-5" /> {error}
-        </div>
-      )}
-      {successMessage && (
-        <div className="p-4 border rounded-lg shadow bg-green-100 text-green-700 flex items-center">
-          <CheckCircle className="mr-2 h-5 w-5" /> {successMessage}
-        </div>
-      )}
-
-      {isEditing && isOwner && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Edit Dataset Details</CardTitle>
-            <CardDescription>Modify the dataset's price and visibility. Description is not editable post-creation with the current contract.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="editableVisibility">Visibility</Label>
-              <Select 
-                value={String(editableVisibility)} 
-                onValueChange={(value) => setEditableVisibility(Number(value))}
-              >
-                <SelectTrigger id="editableVisibility">
-                  <SelectValue placeholder="Select visibility" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">Public (Sellable)</SelectItem>
-                  <SelectItem value="1">Private (Not Sellable)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {editableVisibility === 0 && (
-              <div>
-                <Label htmlFor="editablePrice">Price (in MIST)</Label>
-                <Input 
-                  id="editablePrice" 
-                  type="number" 
-                  value={editablePrice} 
-                  onChange={(e) => setEditablePrice(Number(e.target.value))} 
-                  min="0"
-                />
-                <p className="text-sm text-muted-foreground mt-1">1 SUI = 1,000,000,000 MIST.</p>
-              </div>
-            )}
-            <Button onClick={handleSaveChanges} disabled={isProcessingTx}>
-              {isProcessingTx ? "Saving..." : "Save Changes"}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
@@ -484,9 +486,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Price per 1M Compute Units (USDC)</p>
                         <p className="text-base">
-                          {dataset.modelMetadata?.pricePerOneMillionComputeUnits !== undefined 
-                            ? `$${Number(dataset.modelMetadata.pricePerOneMillionComputeUnits).toFixed(4)}`
-                            : "N/A"}
+                          {dataset.modelMetadata.pricePerOneMillionComputeUnits / MIST_PER_USDC} USDC
                         </p>
                       </div>
                       <div>
@@ -530,7 +530,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
                     <p className="text-sm font-medium">Price</p>
                     <p className="text-sm">
                       {dataset.price > 0 
-                        ? `${dataset.price.toLocaleString()} MIST` 
+                        ? `${dataset.price / MIST_PER_USDC} USDC` 
                         : "Free"}
                     </p>
                   </div>
