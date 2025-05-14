@@ -16,8 +16,8 @@ import { use, useState, useEffect, useCallback, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Edit3, AlertCircle, CheckCircle, ExternalLink, FileText, Info, Server, Tag } from "lucide-react";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient, useSignPersonalMessage } from "@mysten/dapp-kit";
+import { Download, Edit3, AlertCircle, CheckCircle, ExternalLink, FileText, Info, Server, Tag, Loader2 } from "lucide-react";
 
 export default function DatasetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -87,7 +87,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
     setError(null);
   }, [dataset?.blobId, currentAccount?.address]);
 
-  const decryptBlob = useCallback(async (data: Uint8Array, datasetObj: DatasetObject) => {
+  const decryptBlob = async (data: Uint8Array, datasetObj: DatasetObject) => {
     if (!currentAccount || !suiClient || !sealClient || !datasetObj || !datasetObj.blobId) {
       setIsLoading(false);
       return;
@@ -147,7 +147,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         },
       }
     );
-  }, [currentAccount, suiClient, sealClient, signPersonalMessage]);
+  };
 
   useEffect(() => {
     if (!dataset || !dataset.blobId || !currentAccount) {
@@ -179,7 +179,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         setFeatures([]);
         setIsLoading(false);
       });
-  }, [dataset, currentAccount, decryptBlob, decryptedBytes]);
+  }, [dataset, currentAccount]);
 
   useEffect(() => {
     if (decryptedBytes) {
@@ -506,7 +506,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
                 <div className="flex items-start gap-2">
                   <Tag className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-medium">Blob ID</p>
+                    <p className="text-sm font-medium">Walrus Blob ID</p>
                     <p className="text-sm font-mono break-all">{dataset.blobId ?? "N/A"}</p>
                   </div>
                 </div>
@@ -537,6 +537,13 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         </div>
       </div>
       
+      {dataset && currentAccount && isLoading && dataset.blobId && !error && (
+        <div className="p-4 border rounded-lg shadow bg-blue-100 text-blue-700 flex items-center">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          Loading and decrypting dataset content... Please wait.
+        </div>
+      )}
+
       {currentAccount && !isLoading && !error && !parsedData && dataset?.blobId && (
         <div className="p-4 border rounded-lg shadow bg-yellow-100 text-yellow-800 flex items-center">
           <AlertCircle className="mr-2 h-5 w-5" /> 
@@ -561,7 +568,6 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
           <AlertCircle className="mr-2 h-5 w-5" /> Please connect your wallet to attempt decryption and view dataset contents.
         </div>
       )}
-
     </div>
   );
 }
