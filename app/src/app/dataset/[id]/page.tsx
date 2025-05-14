@@ -32,6 +32,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
   const [editableVisibility, setEditableVisibility] = useState<number>(0);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [decryptedBytes, setDecryptedBytes] = useState<Uint8Array | null>(null);
+  const shortAddress = (address: string) => address.slice(0, 6) + "..." + address.slice(-4);
 
   const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();
@@ -150,6 +151,10 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
   };
 
   useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
     if (!dataset || !dataset.blobId || !currentAccount) {
       setIsLoading(false);
       return;
@@ -303,12 +308,15 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex-grow">
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-3xl font-bold">{dataset.name || "Dataset Details"}</h1>
+            <h1 className="text-2xl flex items-baseline">
+              <span className="font-medium text-slate-700 dark:text-slate-300">{shortAddress(dataset.owner)}</span>
+              <span className="text-slate-400 dark:text-slate-500 mx-1">/</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{dataset.name}</span>
+            </h1>
             <Badge variant={dataset.visibility.inner === 0 ? "outline" : "secondary"}>
               {dataset.visibility.inner === 0 ? "Public" : "Private"}
             </Badge>
           </div>
-          <p className="text-muted-foreground text-sm">Owned by: {dataset.owner ? dataset.owner : "N/A"}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {isOwner && (
