@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient, useSignPersonalMessage } from "@mysten/dapp-kit";
 import { Download, Edit3, AlertCircle, CheckCircle, ExternalLink, FileText, Info, Server, Tag, Loader2 } from "lucide-react";
+import Link from "next/link";
 
 export default function DatasetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -309,7 +310,9 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         <div className="flex-grow">
           <div className="flex items-center gap-2 mb-1">
             <h1 className="text-2xl flex items-baseline">
-              <span className="font-medium text-slate-700 dark:text-slate-300">{shortAddress(dataset.owner)}</span>
+              <Link href={`/user/${dataset.owner}`} className="text-slate-400 dark:text-slate-500 mx-1">
+                <span className="font-medium text-slate-700 dark:text-slate-300">{shortAddress(dataset.owner)}</span>
+              </Link>
               <span className="text-slate-400 dark:text-slate-500 mx-1">/</span>
               <span className="font-semibold text-slate-900 dark:text-slate-100">{dataset.name}</span>
             </h1>
