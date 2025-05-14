@@ -23,6 +23,8 @@ export default function Home() {
       getPersonalDatasets(currentAccount.address).then(datasets => {
         setPersonalDatasets(datasets);
       });
+    } else {
+      setPersonalDatasets([]);
     }
   }, [currentAccount]);
 
