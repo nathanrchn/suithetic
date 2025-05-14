@@ -461,10 +461,10 @@ export async function getDataset(id: string): Promise<DatasetObject> {
   return _mapRawObjectToDatasetObject(result);
 }
 
-export async function getListedDatasets(): Promise<DatasetObject[]> {
+export async function getLockedDatasets(): Promise<DatasetObject[]> {
   const { data } = await suiClient.queryEvents({
     query: {
-      MoveEventType: `${TESTNET_PACKAGE_ID}::dataset::DatasetListedEvent`
+      MoveEventType: `${TESTNET_PACKAGE_ID}::dataset::DatasetLockedEvent`
     }
   });
 

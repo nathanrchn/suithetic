@@ -21,17 +21,17 @@ import { Download, Edit3, AlertCircle, CheckCircle, ExternalLink, FileText, Info
 
 export default function DatasetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [dataset, setDataset] = useState<DatasetObject | null>(null);
-  const [decryptedBytes, setDecryptedBytes] = useState<Uint8Array | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isProcessingTx, setIsProcessingTx] = useState<boolean>(false);
-  const [parsedData, setParsedData] = useState<any[] | null>(null);
   const [features, setFeatures] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editablePrice, setEditablePrice] = useState<number>(0);
+  const [parsedData, setParsedData] = useState<any[] | null>(null);
+  const [dataset, setDataset] = useState<DatasetObject | null>(null);
+  const [isProcessingTx, setIsProcessingTx] = useState<boolean>(false);
   const [editableVisibility, setEditableVisibility] = useState<number>(0);
-  const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [decryptedBytes, setDecryptedBytes] = useState<Uint8Array | null>(null);
 
   const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();

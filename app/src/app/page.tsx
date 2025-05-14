@@ -3,18 +3,18 @@
 import { useEffect, useState } from "react";
 import { DatasetObject } from "@/lib/types";
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import { getListedDatasets, getPersonalDatasets } from "@/lib/actions";
 import { DatasetList } from "@/components/dataset-list";
+import { getLockedDatasets, getPersonalDatasets } from "@/lib/actions";
 
 export default function Home() {
-  const [listedDatasets, setListedDatasets] = useState<DatasetObject[]>([]);
+  const [lockedDatasets, setLockedDatasets] = useState<DatasetObject[]>([]);
   const [personalDatasets, setPersonalDatasets] = useState<DatasetObject[]>([]);
 
   const currentAccount = useCurrentAccount();
 
   useEffect(() => {
-    getListedDatasets().then(datasets => {
-      setListedDatasets(datasets);
+    getLockedDatasets().then(datasets => {
+      setLockedDatasets(datasets);
     });
   }, []);
 
@@ -38,10 +38,10 @@ export default function Home() {
       {personalDatasets.length > 0 && (
         <DatasetList datasets={personalDatasets} />
       )}
-      {listedDatasets.length > 0 && (
+      {lockedDatasets.length > 0 && (
         <div className="mt-8">
-          <h2 className="text-2xl font-bold mb-4">Listed Datasets</h2>
-          <DatasetList datasets={listedDatasets} />
+          <h2 className="text-2xl font-bold mb-4">Locked Datasets</h2>
+          <DatasetList datasets={lockedDatasets} />
         </div>
       )}
     </div>
