@@ -314,7 +314,32 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
   }
 
   if (!dataset) {
-    return <div className="container mx-auto p-4 text-center">Dataset not found or ID is invalid.</div>;
+    return (
+      <div className="container mx-auto p-4 space-y-6 animate-pulse">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex-grow">
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+            <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          </div>
+          <div className="lg:col-span-1 space-y-6">
+            <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          </div>
+        </div>
+        <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded"></div>
+      </div>
+    );
   }
 
   return (
@@ -567,7 +592,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         </div>
       )}
 
-      {currentAccount && !isLoading && !error && !parsedData && dataset?.blobId && (
+      {currentAccount && !isLoading && !parsedData && dataset?.blobId && (
         <div className="p-4 border rounded-lg shadow bg-yellow-100 text-yellow-800 flex items-center">
           <AlertCircle className="mr-2 h-5 w-5" /> 
           Attempting to load dataset content, but no data is available for display. This could be due to decryption issues, an empty dataset, or a problem parsing the content. Check console for errors.
