@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Suithetic - Synthetic Data Generation on SUI Blockchain",
+  title: "Suithetic",
   description: "Generate secure, private, and efficient synthetic data with Suithetic - powered by SUI blockchain, Atoma Network, Walrus storage, and Seal encryption.",
 };
 
