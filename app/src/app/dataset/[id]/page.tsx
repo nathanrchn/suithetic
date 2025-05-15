@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { DatasetObject } from "@/lib/types";
 import { fromHex } from "@mysten/sui/utils";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +18,8 @@ import { use, useState, useEffect, useCallback, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Download, Edit3, AlertCircle, ExternalLink, FileText, Info, Server, Tag, Loader2 } from "lucide-react";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient, useSignPersonalMessage } from "@mysten/dapp-kit";
-import { Download, Edit3, AlertCircle, CheckCircle, ExternalLink, FileText, Info, Server, Tag, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function DatasetPage({ params }: { params: Promise<{ id: string }> }) {
@@ -35,6 +36,14 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [decryptedBytes, setDecryptedBytes] = useState<Uint8Array | null>(null);
   const shortAddress = (address: string) => address.slice(0, 6) + "..." + address.slice(-4);
+
+  const isSuiAddress = (address: string) => {
+    return address.startsWith("0x") && address.length === 66
+  }
+
+  if (!isSuiAddress(id)) {
+    notFound();
+  }
 
   const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();
