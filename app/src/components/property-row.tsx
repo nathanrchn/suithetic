@@ -1,6 +1,6 @@
-import { Asterisk } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Asterisk, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface PropertyRowProps {
@@ -16,7 +16,6 @@ interface PropertyRowProps {
   onIsArrayChange: (id: string, isArray: boolean) => void;
   onIsRequiredChange: (id: string, isRequired: boolean) => void;
   onDelete: () => void;
-  onAddNestedProperty?: (parentId: string) => void;
 }
 
 export default function PropertyRow({ 
@@ -32,10 +31,9 @@ export default function PropertyRow({
   onIsArrayChange,
   onIsRequiredChange,
   onDelete,
-  onAddNestedProperty
 }: PropertyRowProps) {
   return (
-    <div className="p-2">
+    <div className="pt-2 pb-2">
       <div className="flex items-center space-x-2">
         <Input
           type="text"
@@ -86,21 +84,9 @@ export default function PropertyRow({
           <Asterisk className="h-4 w-4" />
         </Button>
         <Button variant="outline" size="icon" onClick={onDelete} title="Delete property" className="hover:bg-red-500/10 hover:text-red-500">
-          🗑️
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
-      {propertyType === 'object' && onAddNestedProperty && (
-        <div className="mt-2 pl-2">
-          <Button
-            type="button"
-            variant="link"
-            onClick={() => onAddNestedProperty(id)}
-            className="p-0 h-auto text-blue-500 hover:text-blue-400"
-          >
-            Add nested property
-          </Button>
-        </div>
-      )}
     </div>
   );
 } 
