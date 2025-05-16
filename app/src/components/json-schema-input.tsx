@@ -3,10 +3,10 @@ import { nanoid } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import PropertyRow from "@/components/property-row";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 interface Property {
   id: string;
+  parentId?: string;
   name: string;
   description: string;
   type: string;
@@ -34,9 +34,6 @@ const buildZodShapeRecursive = (
       case "number":
         zodType = z.number();
         break;
-      case "integer":
-        zodType = z.number().int();
-        break;
       case "boolean":
         zodType = z.boolean();
         break;
@@ -51,9 +48,6 @@ const buildZodShapeRecursive = (
           );
           zodType = z.object(nestedShape);
         }
-        break;
-      case "enum":
-        zodType = z.string();
         break;
       default:
         zodType = z.any();
@@ -72,19 +66,13 @@ const buildZodShapeRecursive = (
   return shape;
 };
 
-export default function JsonSchemaInput({ schema, setSchema }: { schema: z.ZodObject<any> | null, setSchema: (schema: z.ZodObject<any> | null) => void }) {
+export default function JsonSchemaInput({ setSchema }: { setSchema: (schema: z.ZodObject<any> | null) => void }) {
   const [confirmed, setConfirmed] = useState(false);
   const [properties, setProperties] = useState<Property[]>([]);
 
   useEffect(() => {
     setConfirmed(false);
   }, [properties]);
-
-  useEffect(() => {
-    if (schema) {
-      console.log("schema", zodToJsonSchema(schema));
-    }
-  }, [schema]);
 
   const addProperty = () => {
     setProperties([...properties, { id: nanoid(), name: "", description: "", type: "string", isArray: false, isRequired: false, nestedProperties: [] }]);
@@ -94,28 +82,52 @@ export default function JsonSchemaInput({ schema, setSchema }: { schema: z.ZodOb
     setProperties(properties.map(prop => prop.id === parentId ? { ...prop, nestedProperties: [...prop.nestedProperties, { id: nanoid(), name: "", description: "", type: "string", isArray: false, isRequired: false, nestedProperties: [] }] } : prop));
   };
 
-  const deleteProperty = (id: string) => {
-    setProperties(properties.filter(prop => prop.id !== id));
+  const deleteProperty = (id: string, parentId?: string) => {
+    if (parentId) {
+      setProperties(properties.map(prop => prop.id === parentId ? { ...prop, nestedProperties: prop.nestedProperties.filter(nestedProp => nestedProp.id !== id) } : prop));
+    } else {
+      setProperties(properties.filter(prop => prop.id !== id));
+    }
   };
 
-  const handlePropertyNameChange = (id: string, name: string) => {
-    setProperties(properties.map(prop => prop.id === id ? { ...prop, name } : prop));
+  const handlePropertyNameChange = (id: string, name: string, parentId?: string) => {
+    if (parentId) {
+      setProperties(properties.map(prop => prop.id === parentId ? { ...prop, nestedProperties: prop.nestedProperties.map(nestedProp => nestedProp.id === id ? { ...nestedProp, name } : nestedProp) } : prop));
+    } else {
+      setProperties(properties.map(prop => prop.id === id ? { ...prop, name } : prop));
+    }
   };
 
-  const handlePropertyDescriptionChange = (id: string, description: string) => {
-    setProperties(properties.map(prop => prop.id === id ? { ...prop, description } : prop));
+  const handlePropertyDescriptionChange = (id: string, description: string, parentId?: string) => {
+    if (parentId) {
+      setProperties(properties.map(prop => prop.id === parentId ? { ...prop, nestedProperties: prop.nestedProperties.map(nestedProp => nestedProp.id === id ? { ...nestedProp, description } : nestedProp) } : prop));
+    } else {
+      setProperties(properties.map(prop => prop.id === id ? { ...prop, description } : prop));
+    }
   };
 
-  const handlePropertyTypeChange = (id: string, type: string) => {
-    setProperties(properties.map(prop => prop.id === id ? { ...prop, type } : prop));
+  const handlePropertyTypeChange = (id: string, type: string, parentId?: string) => {
+    if (parentId) {
+      setProperties(properties.map(prop => prop.id === parentId ? { ...prop, nestedProperties: prop.nestedProperties.map(nestedProp => nestedProp.id === id ? { ...nestedProp, type } : nestedProp) } : prop));
+    } else {
+      setProperties(properties.map(prop => prop.id === id ? { ...prop, type } : prop));
+    }
   };
 
-  const handleIsArrayChange = (id: string, isArray: boolean) => {
-    setProperties(properties.map(prop => prop.id === id ? { ...prop, isArray } : prop));
+  const handleIsArrayChange = (id: string, isArray: boolean, parentId?: string) => {
+    if (parentId) {
+      setProperties(properties.map(prop => prop.id === parentId ? { ...prop, nestedProperties: prop.nestedProperties.map(nestedProp => nestedProp.id === id ? { ...nestedProp, isArray } : nestedProp) } : prop));
+    } else {
+      setProperties(properties.map(prop => prop.id === id ? { ...prop, isArray } : prop));
+    }
   };
 
-  const handleIsRequiredChange = (id: string, isRequired: boolean) => {
-    setProperties(properties.map(prop => prop.id === id ? { ...prop, isRequired } : prop));
+  const handleIsRequiredChange = (id: string, isRequired: boolean, parentId?: string) => {
+    if (parentId) {
+      setProperties(properties.map(prop => prop.id === parentId ? { ...prop, nestedProperties: prop.nestedProperties.map(nestedProp => nestedProp.id === id ? { ...nestedProp, isRequired } : nestedProp) } : prop));
+    } else {
+      setProperties(properties.map(prop => prop.id === id ? { ...prop, isRequired } : prop));
+    }
   };
 
   const handleConfirm = () => {
@@ -147,13 +159,14 @@ export default function JsonSchemaInput({ schema, setSchema }: { schema: z.ZodOb
             onPropertyTypeChange={handlePropertyTypeChange}
             onIsArrayChange={handleIsArrayChange}
             onIsRequiredChange={handleIsRequiredChange}
-            onDelete={() => deleteProperty(prop.id)} 
+            onDelete={() => deleteProperty(prop.id, undefined)} 
           />
           <div className="pl-10">
             {prop.nestedProperties.map(nestedProp => (
               <PropertyRow 
                 key={nestedProp.id} 
                 id={nestedProp.id}
+                parentId={prop.id}
                 propertyName={nestedProp.name}
                 propertyDescription={nestedProp.description}
                 propertyType={nestedProp.type}
@@ -164,7 +177,7 @@ export default function JsonSchemaInput({ schema, setSchema }: { schema: z.ZodOb
                 onPropertyTypeChange={handlePropertyTypeChange}
                 onIsArrayChange={handleIsArrayChange}
                 onIsRequiredChange={handleIsRequiredChange}
-                onDelete={() => deleteProperty(nestedProp.id)}
+                onDelete={() => deleteProperty(nestedProp.id, prop.id)}
               />
             ))}
             {prop.type === "object" && <Button

@@ -554,7 +554,7 @@ export default function CreatePage() {
                     {form.watch("isStructured") && (
                       <div>
                         <h3 className="text-lg font-semibold mb-2 mt-4">JSON Schema</h3>
-                        <JsonSchemaInput schema={jsonSchema} setSchema={setJsonSchema} />
+                        <JsonSchemaInput setSchema={setJsonSchema} />
                       </div>
                     )}
                   </CardContent>
