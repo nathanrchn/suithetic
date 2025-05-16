@@ -19,6 +19,7 @@ export default function DatasetInput({
   const [open, setOpen] = useState(false);
   const [popOpen, setPopOpen] = useState(false);
   const [path, setPath] = useState(dataset?.path || "");
+  const [error, setError] = useState<string | null>(null);
   const [completions, setCompletions] = useState<string[]>([]);
   const [split, setSplit] = useState<string | null>(dataset?.split || null);
   const [config, setConfig] = useState<string | null>(dataset?.config || null);
@@ -32,6 +33,16 @@ export default function DatasetInput({
 
   const getConfigsAndSplits = async (dataset: string) => {
     const response = await fetch(`https://datasets-server.huggingface.co/splits?dataset=${dataset}`)
+
+    if (!response.ok) {
+      console.error("Error fetching dataset configs and splits:", response.status);
+      setError("This dataset is not available. It might require authentication or may not exist.");
+      setConfigsAndSplits({});
+      setConfig(null);
+      setSplit(null);
+      return;
+    }
+
     const data = await response.json();
 
     const configsAndSplits: Record<string, string[]> = {};
@@ -44,6 +55,7 @@ export default function DatasetInput({
     });
     
     setConfigsAndSplits(configsAndSplits);
+    setError(null);
 
     setConfig(null);
     setSplit(null);
@@ -75,6 +87,11 @@ export default function DatasetInput({
   useEffect(() => {
     if (path && completions.find((completion) => completion === path)) {
       getConfigsAndSplits(path);
+    } else {
+      setConfigsAndSplits({});
+      setConfig(null);
+      setSplit(null);
+      setError(null);
     }
   }, [path, completions]);
 
@@ -91,6 +108,11 @@ export default function DatasetInput({
           <DialogDescription>
             Search for a dataset to use in your project.
           </DialogDescription>
+          {error && (
+            <DialogDescription className="text-red-500">
+              {error}
+            </DialogDescription>
+          )}
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
@@ -118,6 +140,7 @@ export default function DatasetInput({
                     onValueChange={(e) => {
                       setPath(e);
                       quickSearch(e);
+                      setError(null);
                     }} />
                   <CommandList>
                     <CommandEmpty>No dataset found.</CommandEmpty>
@@ -129,7 +152,6 @@ export default function DatasetInput({
                           onSelect={(currentValue) => {
                             setPath(currentValue === path ? "" : currentValue)
                             setPopOpen(false)
-                            getConfigsAndSplits(currentValue);
                           }}
                         >
                           {completion}
@@ -187,7 +209,7 @@ export default function DatasetInput({
           )}
         </div>
         <DialogFooter>
-          <Button type="submit" disabled={!path || !config || !split} onClick={() => {
+          <Button type="submit" disabled={!path || !config || !split || !!error} onClick={() => {
             setOpen(false);
             getFeaturesAndSetDataset(path, config || "", split || "");
           }}>

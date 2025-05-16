@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export type HFDataset = {
   path: string;
   config: string;
@@ -15,9 +17,9 @@ export type WalrusService = {
 export type GenerationConfig = {
   model: string;
   inputFeature: string;
-  jsonSchema: string | null;
   maxTokens: number;
   prompt: string;
+  jsonSchema?: z.ZodObject<any>;
 }
 
 export type SyntheticDataResultItem = {

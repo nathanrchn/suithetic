@@ -16,6 +16,7 @@ import DatasetInput from "@/components/dataset-input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
+import JsonSchemaInput from "@/components/json-schema-input";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 import { getModels, generatePreview, generateSyntheticData, storeBlob } from "@/lib/actions";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
@@ -33,26 +34,10 @@ const formSchema = z.object({
   maxTokens: z.coerce.number().min(1, "Max tokens must be at least 1."),
   inputFeature: z.string().min(1, "Input feature is required."),
   isStructured: z.boolean(),
-  jsonSchema: z.string().optional(),
   prompt: z.string().includes("{input}"),
   visibility: z.coerce.number().int().min(0).max(1),
   description: z.string().optional(),
   price: z.coerce.number().min(0).optional(),
-}).refine(data => {
-  if (data.isStructured) {
-    if (!data.jsonSchema || data.jsonSchema.trim() === "") {
-      return false;
-    }
-    try {
-      JSON.parse(data.jsonSchema);
-    } catch (e) {
-      return false;
-    }
-  }
-  return true;
-}, {
-  message: "Valid JSON schema is required for structured output.",
-  path: ["jsonSchema"],
 }).refine(data => {
   if (data.visibility === 0 && (data.price === undefined || data.price < 0)) {
     return false;
@@ -76,6 +61,7 @@ export default function CreatePage() {
   const [datasetBlobId, setDatasetBlobId] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
   const [isStoringDataset, setIsStoringDataset] = useState<boolean>(false);
+  const [jsonSchema, setJsonSchema] = useState<z.ZodObject<any> | null>(null);
   const [datasetObjectId, setDatasetObjectId] = useState<string | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState<boolean>(false);
   const [isDatasetGenerationLoading, setIsDatasetGenerationLoading] = useState<boolean>(false);
@@ -112,7 +98,6 @@ export default function CreatePage() {
       maxTokens: 100,
       inputFeature: "",
       isStructured: false,
-      jsonSchema: "",
       prompt: "",
       visibility: 0,
       description: "",
@@ -141,7 +126,7 @@ export default function CreatePage() {
     setIsPreviewLoading(true);
     setPreviewAttempts(prev => prev + 1);
     
-    const { modelId, inputFeature, jsonSchema, maxTokens, prompt, isStructured } = form.getValues();
+    const { modelId, inputFeature, maxTokens, prompt, isStructured } = form.getValues();
     const currentModel = models.find(m => m.id === modelId);
 
     if (!currentModel) {
@@ -154,7 +139,7 @@ export default function CreatePage() {
       const generationConfig: GenerationConfig = {
         model: currentModel.id,
         inputFeature,
-        jsonSchema: isStructured && jsonSchema ? jsonSchema : null,
+        jsonSchema: isStructured && jsonSchema ? jsonSchema : undefined,
         maxTokens,
         prompt
       };
@@ -253,7 +238,7 @@ export default function CreatePage() {
         const generationConfig: GenerationConfig = {
           model: currentModel.id,
           inputFeature: values.inputFeature,
-          jsonSchema: values.isStructured && values.jsonSchema ? values.jsonSchema : null,
+          jsonSchema: values.isStructured && jsonSchema ? jsonSchema : undefined,
           maxTokens: values.maxTokens,
           prompt: values.prompt
         };
@@ -569,28 +554,7 @@ export default function CreatePage() {
                     {form.watch("isStructured") && (
                       <div>
                         <h3 className="text-lg font-semibold mb-2 mt-4">JSON Schema</h3>
-                         <FormField
-                            control={form.control}
-                            name="jsonSchema"
-                            render={({ field }) => (
-                              <FormItem className="space-y-2">
-                                <FormLabel htmlFor="jsonSchema">Schema Definition</FormLabel>
-                                <FormControl>
-                                  <Textarea 
-                                    id="jsonSchema"
-                                    placeholder='Enter JSON schema (e.g., {"type": "object", "properties": {...}})'
-                                    className="min-h-[100px] font-mono text-sm"
-                                    {...field}
-                                    value={field.value || ""}
-                                  />
-                                </FormControl>
-                                <FormDescription>
-                                  Define the structure of your output data using JSON Schema format.
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                        <JsonSchemaInput schema={jsonSchema} setSchema={setJsonSchema} />
                       </div>
                     )}
                   </CardContent>
@@ -634,7 +598,7 @@ export default function CreatePage() {
                         !form.getValues("modelId") || 
                         !form.getValues("inputFeature") || 
                         !form.getValues("prompt") || 
-                        (form.getValues("isStructured") && !form.getValues("jsonSchema")) || 
+                        (form.getValues("isStructured") && !jsonSchema) || 
                         isPreviewLoading || 
                         previewAttempts >= MAX_PREVIEW_ATTEMPTS ||
                         !currentAccount
