@@ -12,7 +12,7 @@ export async function getTokenizedRows(dataset: HFDataset, offset: number, lengt
   const response = await fetch(`https://datasets-server.huggingface.co/rows?dataset=${dataset.path}&config=${dataset.config}&split=${dataset.split}&offset=${offset}&length=${length}`);
   const data = await response.json();
   
-  let rows = data.rows;
+  const rows = data.rows;
   const tokenizer = Tokenizer.fromPretrained(model);
 
   for (const row of rows) {
