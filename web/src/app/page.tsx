@@ -1,210 +1,420 @@
 import Link from "next/link";
-import Title from "@/components/title";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { ArrowRight, Database, Lock, BarChart3, Layers, Shield, ExternalLink } from "lucide-react";
 
 export default function Home() {
   const appLink = "https://app.suithetic.com";
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur">
-        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
+    <div className="flex min-h-screen flex-col bg-[#fffdf3]">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight"><Link href="/">Suithetic</Link></h1>
+            <Image
+              src="/logo.svg"
+              alt="Suithetic Logo"
+              width={32}
+              height={32}
+              className="rounded-md"
+            />
+            <span className="text-xl font-bold">Suithetic</span>
           </div>
-          <Link 
-            href={appLink} 
-            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-          >
-            Launch App
-          </Link>
+          <nav className="hidden md:flex gap-6">
+            <Link href="#features" className="text-sm font-medium transition-colors hover:text-primary">
+              Features
+            </Link>
+            <Link href="#how-it-works" className="text-sm font-medium transition-colors hover:text-primary">
+              How It Works
+            </Link>
+            <Link href="#use-cases" className="text-sm font-medium transition-colors hover:text-primary">
+              Use Cases
+            </Link>
+            <Link href="#marketplace" className="text-sm font-medium transition-colors hover:text-primary">
+              Marketplace
+            </Link>
+          </nav>
+          <div>
+            <Button asChild>
+              <Link href={appLink} className="flex items-center gap-1">
+                Launch App <ExternalLink className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="flex-1">
-        <section className="w-full flex items-center min-h-[calc(100vh-4rem)]">
-          <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48">
+          <div className="container mx-auto px-4 md:px-6">
             <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
-                  <Title />
+                  <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
+                    Structured Synthetic Data on the SUI Blockchain
+                  </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                    Secure, private, and efficient synthetic data generation for all your needs.
+                    Suithetic generates structured, verifiable synthetic data using LLMs, securely
+                    stores it on-chain, and provides a marketplace for high-quality datasets.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Link 
-                    href={appLink} 
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-8 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  >
-                    Get Started
-                  </Link>
-                  <Link 
-                    href="#learn-more" 
-                    className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-8 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  >
+                  <Button size="lg" asChild>
+                    <Link href={appLink}>
+                      Launch App <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="lg">
                     Learn More
-                  </Link>
+                  </Button>
                 </div>
               </div>
-              <div className="hidden lg:block">
-                {(() => {
-                  // Dimensions and perspective settings
-                  const blockWidth = 200; // Increased width
-                  const blockHeight = 40;  // Increased height (proportionally)
-                  const isoAngle = 30;     // Isometric angle in degrees
-                  const isoSkewY = Math.tan(isoAngle * Math.PI / 180);
-                  const perspectiveDepth = blockWidth * 0.5 * isoSkewY;
-                  const spacing = 20;     // Increased vertical spacing
-                  const strokeWidth = 2;
-                  const paddingRight = -60; // Negative padding to push it further right (partially off-screen)
-                  const paddingTop = 20;   // Padding from the top edge
+              <div className="flex items-center justify-center">
+                <div className="relative h-[350px] w-full overflow-hidden rounded-lg bg-muted">
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#6750A4]/20 to-[#6750A4]/30 opacity-70"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      {/* Central AI/LLM Node */}
+                      <div className="absolute z-30 w-24 h-24 rounded-full bg-[#6750A4]/80 flex items-center justify-center border-2 border-[#6750A4] shadow-lg shadow-[#6750A4]/20">
+                        <div className="text-white font-bold text-lg">LLM</div>
+                      </div>
 
-                  // Calculate base Y positions for each block (bottom starts lowest)
-                  const yBase3 = (blockHeight + spacing) * 2;
-                  const yBase2 = blockHeight + spacing;
-                  const yBase1 = 0;
+                      {/* Blockchain Layer */}
+                      <div className="absolute w-64 h-64 rounded-full border-4 border-dashed border-[#6750A4]/40 animate-[spin_20s_linear_infinite]"></div>
 
-                  // Calculate total size (needed for positioning)
-                  const totalHeight = (blockHeight + spacing) * 2 + blockHeight + perspectiveDepth;
-                  const totalWidth = blockWidth + (blockWidth * 0.5); // Approximation for iso width
+                      {/* Data Nodes */}
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="absolute w-12 h-12 rounded-lg bg-background/80 backdrop-blur-sm flex items-center justify-center shadow-md"
+                          style={{
+                            transform: `rotate(${i * 45}deg) translateX(120px) rotate(-${i * 45}deg)`,
+                            animation: `pulse 3s infinite ease-in-out ${i * 0.2}s`,
+                          }}
+                        >
+                          {i % 4 === 0 && <Database className="h-5 w-5 text-[#6750A4]" />}
+                          {i % 4 === 1 && <Lock className="h-5 w-5 text-[#6750A4]" />}
+                          {i % 4 === 2 && <BarChart3 className="h-5 w-5 text-[#6750A4]" />}
+                          {i % 4 === 3 && <Layers className="h-5 w-5 text-[#6750A4]" />}
+                        </div>
+                      ))}
 
-                  // Position near top-right
-                  const translateX = 300 - totalWidth - paddingRight;
-                  const translateY = paddingTop;
+                      {/* Connection Lines */}
+                      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 400">
+                        <defs>
+                          <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#6750A4" stopOpacity="0.2" />
+                            <stop offset="50%" stopColor="#6750A4" stopOpacity="0.6" />
+                            <stop offset="100%" stopColor="#6750A4" stopOpacity="0.2" />
+                          </linearGradient>
+                        </defs>
+                        {Array.from({ length: 8 }).map((_, i) => {
+                          const angle = i * 45 * (Math.PI / 180)
+                          const x = 200 + 120 * Math.cos(angle)
+                          const y = 200 + 120 * Math.sin(angle)
+                          return (
+                            <line
+                              key={i}
+                              x1="200"
+                              y1="200"
+                              x2={x}
+                              y2={y}
+                              stroke="url(#lineGradient)"
+                              strokeWidth="2"
+                              strokeDasharray="5,5"
+                              className="animate-pulse"
+                            />
+                          )
+                        })}
+                      </svg>
 
-                  // Helper function to create points string for polygons
-                  const points = (coords: [number, number][]): string => coords.map((p: [number, number]) => `${p[0]},${p[1]}`).join(' ');
-
-                  // Block definitions (points calculated relative to block's top-left corner)
-                  const createBlock = (yBase: number, topColor: string, sideColor: string) => {
-                    // Top face points (Rhombus)
-                    const topPoints = points([
-                      [0, yBase + blockHeight],
-                      [blockWidth * 0.5, yBase + blockHeight - perspectiveDepth],
-                      [blockWidth, yBase + blockHeight],
-                      [blockWidth * 0.5, yBase + blockHeight + perspectiveDepth]
-                    ]);
-                    // Left side face points (Parallelogram)
-                    const leftSidePoints = points([
-                      [0, yBase + blockHeight],
-                      [blockWidth * 0.5, yBase + blockHeight + perspectiveDepth],
-                      [blockWidth * 0.5, yBase + blockHeight * 2 + perspectiveDepth],
-                      [0, yBase + blockHeight * 2]
-                    ]);
-                     // Right side face points (Parallelogram)
-                    const rightSidePoints = points([
-                      [blockWidth, yBase + blockHeight],
-                      [blockWidth * 0.5, yBase + blockHeight + perspectiveDepth],
-                      [blockWidth * 0.5, yBase + blockHeight * 2 + perspectiveDepth],
-                      [blockWidth, yBase + blockHeight * 2]
-                    ]);
-
-                    return (
-                      <g key={yBase}>
-                        <polygon points={leftSidePoints} fill={sideColor} stroke="black" strokeWidth={strokeWidth} />
-                        <polygon points={rightSidePoints} fill={sideColor} stroke="black" strokeWidth={strokeWidth} />
-                        <polygon points={topPoints} fill={topColor} stroke="black" strokeWidth={strokeWidth} />
-                      </g>
-                    );
-                  };
-
-                  return (
-                    <svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto rounded-lg">
-                      <g transform={`translate(${translateX}, ${translateY})`}>
-                        {createBlock(yBase3, '#ffcdd2' /* Light Red/Coral */, '#ef5350' /* Darker Red/Coral */)}
-                        {createBlock(yBase2, '#b3e5fc' /* Light Blue */, '#4fc3f7' /* Darker Blue */)}
-                        {createBlock(yBase1, '#e0cffc' /* Light Lavender */, '#b39ddb' /* Darker Lavender */)}
-                      </g>
-                    </svg>
-                  );
-                })()}
+                      {/* Structured Data Visualization */}
+                      <div className="absolute bottom-6 right-6 bg-background/80 backdrop-blur-sm p-3 rounded-lg border border-[#6750A4]/30">
+                        <div className="text-xs font-mono text-[#6750A4]">
+                          {"{"}
+                          <br />
+                          &nbsp;&nbsp;"structured": true,
+                          <br />
+                          &nbsp;&nbsp;"verified": true,
+                          <br />
+                          &nbsp;&nbsp;"source": "suithetic"
+                          <br />
+                          {"}"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="learn-more" className="w-full py-12 md:py-24 lg:py-32 bg-muted">
-          <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto flex max-w-[58rem] flex-col items-center justify-center gap-4 text-center">
-              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-                Powered by State-of-the-Art Technologies
-              </h2>
-              <p className="max-w-[85%] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                Suithetic combines the best technologies for secure, efficient synthetic data generation
-              </p>
+        <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-background/50">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Core Features</div>
+                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight">
+                  Revolutionizing Data Generation & Access
+                </h2>
+                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                  Suithetic combines the power of LLMs with blockchain technology to create a new paradigm for data
+                  generation and marketplace access.
+                </p>
+              </div>
             </div>
-            <div className="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:grid-cols-3 lg:gap-8 mt-8">
-              <div className="flex flex-col items-center justify-center space-y-2 p-4 rounded-lg border bg-card">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>
+            <div className="mx-auto grid max-w-5xl items-center gap-6 py-12 lg:grid-cols-3 lg:gap-12">
+              <div className="flex flex-col justify-center space-y-4 rounded-lg border p-6 shadow-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                  <Layers className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-bold">SUI Blockchain</h3>
-                <p className="text-center text-muted-foreground">
-                  Built on the fast and scalable SUI blockchain for secure transactions
-                </p>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold">Structured Synthetic Data</h3>
+                  <p className="text-muted-foreground">
+                    Generate structured, verifiable synthetic data optimized for training next-gen agentic AI models and
+                    tool-using applications.
+                  </p>
+                </div>
               </div>
-              <div className="flex flex-col items-center justify-center space-y-2 p-4 rounded-lg border bg-card">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12"></path><circle cx="17" cy="7" r="5"></circle></svg>
+              <div className="flex flex-col justify-center space-y-4 rounded-lg border p-6 shadow-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                  <Database className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-bold">Atoma Network</h3>
-                <p className="text-center text-muted-foreground">
-                  Advanced LLM generation capabilities for high-quality synthetic data
-                </p>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold">On-Chain Storage</h3>
+                  <p className="text-muted-foreground">
+                    Securely store generated data on-chain using Walrus, ensuring immutability and transparency.
+                  </p>
+                </div>
               </div>
-              <div className="flex flex-col items-center justify-center space-y-2 p-4 rounded-lg border bg-card">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"></rect><path d="M12 6v4"></path><line x1="9" x2="15" y1="12" y2="12"></line></svg>
+              <div className="flex flex-col justify-center space-y-4 rounded-lg border p-6 shadow-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                  <Shield className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-bold">Walrus Storage</h3>
-                <p className="text-center text-muted-foreground">
-                  Reliable and efficient storage solutions for your synthetic data
-                </p>
-              </div>
-              <div className="flex flex-col items-center justify-center space-y-2 p-4 rounded-lg border bg-card">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold">Encrypted Security</h3>
+                  <p className="text-muted-foreground">
+                    Protect sensitive data with on-chain encryption using Seal, maintaining privacy while preserving
+                    verifiability.
+                  </p>
                 </div>
-                <h3 className="text-xl font-bold">Seal Encryption</h3>
-                <p className="text-center text-muted-foreground">
-                  Industry-leading encryption to keep your data secure and private
-                </p>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="w-full py-12 md:py-24 lg:py-32">
-          <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-[58rem] flex flex-col items-center justify-center gap-4 text-center">
-              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-                Ready to generate synthetic data?
-              </h2>
-              <p className="max-w-[85%] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                Start using Suithetic today and transform your data workflow
-              </p>
-              <Link
-                href={appLink}
-                className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              >
-                Launch App
-              </Link>
+        <section id="how-it-works" className="w-full py-12 md:py-24 lg:py-32 bg-muted">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                <div className="inline-block rounded-lg bg-background px-3 py-1 text-sm">Technology</div>
+                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight">How Suithetic Works</h2>
+                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                  Our innovative stack combines multiple blockchain technologies to create a seamless, secure data
+                  ecosystem.
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto grid max-w-5xl items-center gap-6 py-12 lg:grid-cols-2 lg:gap-12">
+              <Image
+                src="/placeholder.svg?height=400&width=500"
+                width={500}
+                height={400}
+                alt="Suithetic Technology Stack"
+                className="mx-auto aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full"
+              />
+              <div className="flex flex-col justify-center space-y-4">
+                <ul className="grid gap-6">
+                  <li>
+                    <div className="grid gap-1">
+                      <h3 className="text-xl font-bold">1. Structured Data Generation</h3>
+                      <p className="text-muted-foreground">
+                        Leverage Atoma Network to generate structured, verifiable synthetic data using state-of-the-art
+                        LLMs directly on the SUI blockchain, optimized for agentic AI training.
+                      </p>
+                    </div>
+                  </li>
+                  <li>
+                    <div className="grid gap-1">
+                      <h3 className="text-xl font-bold">2. Secure Storage</h3>
+                      <p className="text-muted-foreground">
+                        Store generated data on-chain using Walrus, ensuring data integrity and permanent availability.
+                      </p>
+                    </div>
+                  </li>
+                  <li>
+                    <div className="grid gap-1">
+                      <h3 className="text-xl font-bold">3. Encryption</h3>
+                      <p className="text-muted-foreground">
+                        Protect sensitive information with Seal's on-chain encryption, maintaining privacy while
+                        preserving verifiability.
+                      </p>
+                    </div>
+                  </li>
+                  <li>
+                    <div className="grid gap-1">
+                      <h3 className="text-xl font-bold">4. Marketplace Access</h3>
+                      <p className="text-muted-foreground">
+                        Buy and sell access to verified datasets through our decentralized marketplace, creating a new
+                        data economy.
+                      </p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="use-cases" className="w-full py-12 md:py-24 lg:py-32 bg-background">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Applications</div>
+                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight">
+                  Transforming Industries with Verified Data
+                </h2>
+                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                  Discover how Suithetic is revolutionizing data usage across multiple sectors.
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto grid max-w-5xl gap-6 py-12 md:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  title: "Agentic AI Training",
+                  description:
+                    "Create structured synthetic data to train and improve next-generation agentic AI models and tool-using applications.",
+                  icon: <Layers className="h-10 w-10 text-primary" />,
+                },
+                {
+                  title: "Financial Services",
+                  description: "Generate verified market data and financial models with complete audit trails.",
+                  icon: <BarChart3 className="h-10 w-10 text-primary" />,
+                },
+                {
+                  title: "Healthcare",
+                  description: "Create synthetic patient data for research while maintaining privacy and compliance.",
+                  icon: <Shield className="h-10 w-10 text-primary" />,
+                },
+                {
+                  title: "Supply Chain",
+                  description: "Track and verify product data across complex global supply networks.",
+                  icon: <Layers className="h-10 w-10 text-primary" />,
+                },
+                {
+                  title: "Research & Development",
+                  description: "Access verified datasets to accelerate innovation and scientific discovery.",
+                  icon: <Database className="h-10 w-10 text-primary" />,
+                },
+                {
+                  title: "Media & Entertainment",
+                  description: "Generate and verify content with clear provenance and attribution.",
+                  icon: <ExternalLink className="h-10 w-10 text-primary" />,
+                },
+              ].map((useCase, index) => (
+                <div
+                  key={index}
+                  className="flex flex-col items-center space-y-2 rounded-lg border p-6 text-center shadow-sm"
+                >
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">{useCase.icon}</div>
+                  <h3 className="text-xl font-bold">{useCase.title}</h3>
+                  <p className="text-muted-foreground">{useCase.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="marketplace" className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-b from-muted to-background">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
+              <div className="flex flex-col justify-center space-y-4">
+                <div className="space-y-2">
+                  <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Marketplace</div>
+                  <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl xl:text-5xl/none">
+                    Access a World of Verified Datasets
+                  </h2>
+                  <p className="max-w-[600px] text-muted-foreground md:text-xl">
+                    Buy and sell access to high-quality, verifiable datasets through our decentralized marketplace
+                    powered by the SUI blockchain.
+                  </p>
+                </div>
+                <ul className="grid gap-2">
+                  <li className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10">
+                      <ArrowRight className="h-4 w-4 text-primary" />
+                    </div>
+                    <span>Transparent pricing and access controls</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10">
+                      <ArrowRight className="h-4 w-4 text-primary" />
+                    </div>
+                    <span>Verifiable data provenance and quality</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10">
+                      <ArrowRight className="h-4 w-4 text-primary" />
+                    </div>
+                    <span>Secure, encrypted data transfer</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10">
+                      <ArrowRight className="h-4 w-4 text-primary" />
+                    </div>
+                    <span>Monetize your own datasets</span>
+                  </li>
+                </ul>
+                <div className="flex flex-col gap-2 min-[400px]:flex-row">
+                  <Button size="lg" asChild>
+                    <Link href={appLink}>
+                      Explore Marketplace <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center justify-center">
+                <div className="relative h-[400px] w-full overflow-hidden rounded-lg bg-muted">
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-500/20 to-purple-700/30 opacity-70"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Image
+                      src="/placeholder.svg?height=300&width=400"
+                      width={400}
+                      height={300}
+                      alt="Data Marketplace Visualization"
+                      className="rounded-lg object-cover"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
       </main>
 
-      <footer className="w-full border-t py-6 md:py-0">
-        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row">
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Suithetic. All rights reserved.
+      <footer className="w-full border-t bg-background py-6 md:py-12">
+        <div className="container mx-auto flex flex-col items-center justify-center gap-4 px-4 md:px-6 md:flex-row md:justify-between">
+          <div className="flex items-center gap-2">
+            <Image
+              src="/logo.svg"
+              alt="Suithetic Logo"
+              width={32}
+              height={32}
+              className="rounded-md"
+            />
+            <span className="text-lg font-bold">Suithetic</span>
+          </div>
+          <p className="text-center text-sm text-muted-foreground md:text-left">
+            &copy; {new Date().getFullYear()} Suithetic. All rights reserved.
           </p>
-          <div className="flex items-center gap-4">
-            <Link href="/terms" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
-              Terms
+          <div className="flex gap-4">
+            <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
+              Privacy Policy
             </Link>
-            <Link href="/privacy" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
-              Privacy
+            <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
+              Terms of Service
             </Link>
           </div>
         </div>

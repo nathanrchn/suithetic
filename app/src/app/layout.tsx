@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "@mysten/dapp-kit/dist/index.css";
 
-import "./globals.css";
+import "@/app/globals.css";
 import Context from "./context";
 import Header from "@/components/header";
 import { Toaster } from "@/components/ui/sonner";
