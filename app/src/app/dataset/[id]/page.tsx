@@ -72,6 +72,9 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
       }),
   });
 
+  const isOwner = currentAccount && dataset && currentAccount.address === dataset.owner;
+  const [hasAccess, setHasAccess] = useState<boolean>(!isOwner);
+
   const fetchDatasetData = useCallback(async () => {
     if (id) {
       try {
@@ -173,7 +176,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
       return;
     }
 
-    if (decryptedBytes) {
+    if (decryptedBytes || dataset.visibility.inner === 1) {
       setIsLoading(false);
       return;
     }
@@ -275,7 +278,6 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         onSuccess: (result: any) => {
           console.log("Transaction successful:", result);
           setSuccessMessage("Dataset details updated successfully!");
-          fetchDatasetData();
           setIsEditing(false);
         },
         onError: (err: any) => {
@@ -349,9 +351,6 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-
-  const isOwner = currentAccount && dataset && currentAccount.address === dataset.owner;
-  const [hasAccess, setHasAccess] = useState<boolean>(!isOwner);
   
   if (isLoading && !dataset) {
     return <div className="container mx-auto p-4 text-center">Loading dataset metadata...</div>;
@@ -468,7 +467,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
               </DialogContent>
             </Dialog>
           )}
-          {currentAccount && !hasAccess && dataset && dataset.price > 0 && (
+          {currentAccount && !hasAccess && dataset && dataset.price > 0 && dataset.visibility.inner === 0 && (
             <Button onClick={handleBuyDataset} variant="default" title={`Buy Access for ${dataset.price / MIST_PER_USDC} USDC`} disabled={isLoading || isProcessingTx || isBuying}>
               {isBuying ? (
                 <Loader2 size={18} className="mr-2 animate-spin" />
