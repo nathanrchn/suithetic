@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { toast } from "sonner";
 import { notFound } from "next/navigation";
 import { DatasetObject } from "@/lib/types";
 import { fromHex } from "@mysten/sui/utils";
@@ -13,13 +14,13 @@ import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import { EncryptedObject, SealClient } from "@mysten/seal";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { MIST_PER_USDC, TESTNET_PACKAGE_ID } from "@/lib/constants";
 import { getAllowlistedKeyServers, SessionKey } from "@mysten/seal";
 import { use, useState, useEffect, useCallback, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MIST_PER_USDC, TESTNET_PACKAGE_ID, TESTNET_USDC_TYPE } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Edit3, AlertCircle, ExternalLink, FileText, Info, Server, Tag, Loader2 } from "lucide-react";
+import { Download, Edit3, AlertCircle, ExternalLink, FileText, Info, Server, Tag, Loader2, Coins } from "lucide-react";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient, useSignPersonalMessage } from "@mysten/dapp-kit";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -27,6 +28,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
   const { id } = use(params);
   const [features, setFeatures] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isBuying, setIsBuying] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [parsedData, setParsedData] = useState<any[] | null>(null);
@@ -144,16 +146,15 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
               txBytes,
             });
             setDecryptedBytes(decrypted);
+            setHasAccess(true);
           } catch (err: any) {
-            console.error("Error during decryption process:", err);
-            setError(`Decryption failed: ${err.message}`);
+            setHasAccess(false);
             setDecryptedBytes(null);
           } finally {
             setIsLoading(false);
           }
         },
         onError: (err: any) => {
-          console.error("Error signing personal message for decryption:", err);
           setError(`Signing failed: ${err.message}`);
           setDecryptedBytes(null);
           setIsLoading(false);
@@ -288,6 +289,51 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
     );
   };
 
+  const handleBuyDataset = async () => {
+    if (!dataset || !currentAccount || dataset.price <= 0) return;
+
+    setIsBuying(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    const { data: coins } = await suiClient.getCoins({
+      owner: currentAccount.address,
+      coinType: TESTNET_USDC_TYPE,
+    });
+    
+    if (coins.length === 0) {
+      toast.error("Generation Failed", { description: "No USDC coins found for the current account." });
+      return;
+    }
+
+    const tx = new Transaction();
+    const [generationCoin] = tx.splitCoins(coins[0].coinObjectId, [dataset.price]);
+    
+    tx.moveCall({
+      target: `${TESTNET_PACKAGE_ID}::dataset::download_dataset`,
+      arguments: [
+        tx.object(dataset.id),
+        generationCoin,
+      ],
+    });
+
+    signAndExecuteTransaction({ transaction: tx }, {
+        onSuccess: () => {
+          setSuccessMessage("Successfully purchased access to the dataset! Decryption should start soon.");
+          fetchDatasetData();
+          setHasAccess(true);
+        },
+        onError: (err: any) => {
+          console.error("Purchase transaction failed:", err);
+          setError(`Failed to purchase dataset: ${err.message}`);
+        },
+        onSettled: () => {
+          setIsBuying(false);
+        },
+      }
+    );
+  };
+
   const handleDownload = () => {
     if (!parsedData || !dataset) return;
     const dataToDownload = parsedData.map(item => item.row);
@@ -305,6 +351,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
   };
 
   const isOwner = currentAccount && dataset && currentAccount.address === dataset.owner;
+  const [hasAccess, setHasAccess] = useState<boolean>(!isOwner);
   
   if (isLoading && !dataset) {
     return <div className="container mx-auto p-4 text-center">Loading dataset metadata...</div>;
@@ -420,6 +467,16 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+          )}
+          {currentAccount && !hasAccess && dataset && dataset.price > 0 && (
+            <Button onClick={handleBuyDataset} variant="default" title={`Buy Access for ${dataset.price / MIST_PER_USDC} USDC`} disabled={isLoading || isProcessingTx || isBuying}>
+              {isBuying ? (
+                <Loader2 size={18} className="mr-2 animate-spin" />
+              ) : (
+                <Coins size={18} className="mr-2" />
+              )}
+              {isBuying ? "Processing..." : `Buy for ${dataset.price / MIST_PER_USDC} USDC`}
+            </Button>
           )}
           {parsedData && (
              <Button onClick={handleDownload} variant="default" title="Download Decrypted Dataset as JSON" disabled={isLoading || isProcessingTx}>
