@@ -596,7 +596,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
       {currentAccount && !isLoading && !parsedData && dataset?.blobId && (
         <div className="p-4 border rounded-lg shadow bg-yellow-100 text-yellow-800 flex items-center">
           <AlertCircle className="mr-2 h-5 w-5" /> 
-          Attempting to load dataset content, but no data is available for display. This could be due to decryption issues, an empty dataset, or a problem parsing the content. Check console for errors.
+          Attempting to load dataset content, but no data is available for display. Either you haven't access to the dataset or this could be due to decryption issues.
         </div>
       )}
 
