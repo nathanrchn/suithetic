@@ -506,10 +506,10 @@ export async function getPersonalDatasets(address: string): Promise<DatasetObjec
   }).map(_mapRawObjectToDatasetObject);
 }
 
-export async function promptWizard(prompt: string) {
+export async function generatePromptWithWizard(prompt: string) {
   const { object: promptObject } = await generateObject({
     model: google("gemini-2.5-flash-preview-04-17"),
-    prompt: "",
+    prompt: "Give me an image prompt.",
     schema: z.object({
       prompt: z.string().describe("The prompt to generate an image from"),
     }),

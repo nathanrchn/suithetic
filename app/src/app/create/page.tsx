@@ -2,7 +2,6 @@
 
 import * as z from "zod";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -10,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Loader2, Sparkles } from "lucide-react";
 import { fromHex, toHex } from "@mysten/sui/utils";
 import { Textarea } from "@/components/ui/textarea";
 import DatasetInput from "@/components/dataset-input";
@@ -19,12 +19,12 @@ import DatasetViewer from "@/components/dataset-viewer";
 import JsonSchemaInput from "@/components/json-schema-input";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getModels, generatePreview, generateSyntheticData, storeBlob } from "@/lib/actions";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT, MIST_PER_USDC, TESTNET_USDC_TYPE } from "@/lib/constants";
+import { getModels, generatePreview, generateSyntheticData, storeBlob, generatePromptWithWizard } from "@/lib/actions";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -57,6 +57,8 @@ export default function CreatePage() {
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [isLocking, setIsLocking] = useState<boolean>(false);
   const [dataset, setDataset] = useState<HFDataset | null>(null);
+  const [wizardPrompt, setWizardPrompt] = useState<string>("");
+  const [isWizardOpen, setIsWizardOpen] = useState<boolean>(true);
   const [previewAttempts, setPreviewAttempts] = useState<number>(0);
   const [uploadCompleted, setUploadCompleted] = useState<boolean>(false);
   const [datasetBlobId, setDatasetBlobId] = useState<string | null>(null);
@@ -65,6 +67,8 @@ export default function CreatePage() {
   const [jsonSchema, setJsonSchema] = useState<z.ZodObject<any> | null>(null);
   const [datasetObjectId, setDatasetObjectId] = useState<string | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState<boolean>(false);
+  const [isPromptGenerating, setIsPromptGenerating] = useState<boolean>(false);
+  const [wizardPromptGenerated, setWizardPromptGenerated] = useState<boolean>(false);
   const [isDatasetGenerationLoading, setIsDatasetGenerationLoading] = useState<boolean>(false);
   const [syntheticDatasetOutput, setSyntheticDatasetOutput] = useState<SyntheticDataResultItem[]>([]);
 
@@ -403,6 +407,27 @@ export default function CreatePage() {
     }
   };
 
+  const handleGeneratePromptWithWizard = async () => {
+    setIsPromptGenerating(true);
+    const prompt = await generatePromptWithWizard(wizardPrompt);
+    form.setValue("prompt", prompt);
+    setWizardPromptGenerated(true);
+    setIsPromptGenerating(false);
+    setIsWizardOpen(false);
+  };
+
+  const colorFromAddress = (address: string): string => {
+    const colors = [
+      "#F87171",
+      "#FBBF24",
+      "#FCD34D",
+      "#4ADE80",
+      "#3B82F6",
+    ];
+  
+    return colors[parseInt(address.slice(0, 8), 16) % colors.length];
+  }
+
   useEffect(() => {
     getModels().then((models) => {
       setModels(models);
@@ -576,7 +601,7 @@ export default function CreatePage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-lg font-semibold">Generation Prompt</FormLabel>
-                          <Tabs defaultValue="wizard">
+                          <Tabs value={isWizardOpen ? "wizard" : "manual"} onValueChange={(value) => setIsWizardOpen(value === "wizard")}>
                             <TabsList>
                               <TabsTrigger value="wizard">Wizard</TabsTrigger>
                               <TabsTrigger value="manual">Manual</TabsTrigger>
@@ -586,7 +611,11 @@ export default function CreatePage() {
                                 <Textarea
                                   placeholder="Describe your dataset generation task in a few sentences..."
                                   className="min-h-[100px] mt-2"
-                                  {...field}
+                                  value={wizardPrompt}
+                                  onChange={(e) => {
+                                    setWizardPrompt(e.target.value);
+                                    setWizardPromptGenerated(false);
+                                  }}
                                 />
                               </FormControl>
                               <FormDescription>
@@ -611,32 +640,54 @@ export default function CreatePage() {
                       )}
                     />
 
-                    <Button 
-                      type="button"
-                      className="w-full" 
-                      size="lg"
-                      disabled={
-                        !form.getValues("modelId") || 
-                        !form.getValues("inputFeature") || 
-                        !form.getValues("prompt") || 
-                        (form.getValues("isStructured") && !jsonSchema) || 
-                        isPreviewLoading || 
-                        previewAttempts >= MAX_PREVIEW_ATTEMPTS ||
-                        !currentAccount
-                      }
-                      onClick={handleTestGeneration}
-                    >
-                      {isPreviewLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Generating Preview...
-                        </>
-                      ) : previewAttempts >= MAX_PREVIEW_ATTEMPTS ? (
-                        "Preview Limit Reached"
-                      ) : (
-                        `Test Generation With 3 Rows (${MAX_PREVIEW_ATTEMPTS - previewAttempts} left)`
-                      )}
-                    </Button>
+                    {isWizardOpen && wizardPrompt && !wizardPromptGenerated ? (
+                      <Button 
+                        type="button"
+                        className="w-full" 
+                        size="lg"
+                        disabled={isPromptGenerating}
+                        onClick={handleGeneratePromptWithWizard}
+                      >
+                        {isPromptGenerating ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Generating Prompt...
+                          </>
+                        ) : (
+                          <>
+                            Generate Prompt with Wizard
+                            <Sparkles className="h-4 w-4" color={colorFromAddress(currentAccount?.address || "")} />
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button 
+                        type="button"
+                        className="w-full" 
+                        size="lg"
+                        disabled={
+                          !form.getValues("modelId") || 
+                          !form.getValues("inputFeature") || 
+                          !form.getValues("prompt") || 
+                          (form.getValues("isStructured") && !jsonSchema) || 
+                          isPreviewLoading || 
+                          previewAttempts >= MAX_PREVIEW_ATTEMPTS ||
+                          !currentAccount
+                        }
+                        onClick={handleTestGeneration}
+                      >
+                        {isPreviewLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Generating Preview...
+                          </>
+                        ) : previewAttempts >= MAX_PREVIEW_ATTEMPTS ? (
+                          "Preview Limit Reached"
+                        ) : (
+                          `Test Generation With 3 Rows (${MAX_PREVIEW_ATTEMPTS - previewAttempts} left)`
+                        )}
+                      </Button>
+                    )}
 
                     {previewData.length > 0 && form.getValues("inputFeature") && (
                       <div className="mt-6">
