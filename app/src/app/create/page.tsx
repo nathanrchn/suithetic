@@ -18,6 +18,7 @@ import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import JsonSchemaInput from "@/components/json-schema-input";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getModels, generatePreview, generateSyntheticData, storeBlob } from "@/lib/actions";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -575,16 +576,36 @@ export default function CreatePage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-lg font-semibold">Generation Prompt</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Enter the prompt that will guide the generation task..."
-                              className="min-h-[100px] mt-2"
-                              {...field}
-                            />
-                          </FormControl>
-                           <FormDescription>
-                            Use {"{input}"} to reference the input feature in your prompt.
-                          </FormDescription>
+                          <Tabs defaultValue="wizard">
+                            <TabsList>
+                              <TabsTrigger value="wizard">Wizard</TabsTrigger>
+                              <TabsTrigger value="manual">Manual</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="wizard">
+                              <FormControl>
+                                <Textarea
+                                  placeholder="Describe your dataset generation task in a few sentences..."
+                                  className="min-h-[100px] mt-2"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Describe your dataset generation task in a few sentences.
+                              </FormDescription>
+                            </TabsContent>
+                            <TabsContent value="manual">
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="Enter the prompt that will guide the generation task..."
+                                  className="min-h-[100px] mt-2"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Use {"{input}"} to reference the input feature in your prompt.
+                              </FormDescription>
+                            </TabsContent>
+                          </Tabs>
                           <FormMessage />
                         </FormItem>
                       )}

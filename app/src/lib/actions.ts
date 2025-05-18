@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { google } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { WalrusClient } from "@mysten/walrus";
@@ -11,7 +12,6 @@ import { coinWithBalance, Transaction } from "@mysten/sui/transactions";
 import { getFaucetHost, requestSuiFromFaucetV2 } from "@mysten/sui/faucet";
 import { TESTNET_KEYPAIR, TESTNET_PACKAGE_ID, TESTNET_WALRUS_PACKAGE_CONFIG } from "@/lib/constants";
 import { GenerationConfig, HFDataset, SyntheticDataResultItem, DatasetObject } from "@/lib/types";
-import { z } from "zod";
 
 const atoma = createOpenAI({
   apiKey: process.env.ATOMA_API_KEY,
