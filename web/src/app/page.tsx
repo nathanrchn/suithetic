@@ -7,7 +7,7 @@ export default function Home() {
   const appLink = "https://app.suithetic.com";
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#fffdf3]">
+    <div className="flex min-h-screen flex-col bg-gradient-to-l from-[#6750A4]/20 to-[#fffdf3]">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2">
@@ -47,9 +47,9 @@ export default function Home() {
       </header>
 
       <main className="flex-1">
-        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48">
+        <section className="w-full min-h-[calc(100vh-4rem)] flex items-center relative">
           <div className="container mx-auto px-4 md:px-6">
-            <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
+            <div className="grid items-center gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
@@ -74,82 +74,71 @@ export default function Home() {
                 </div>
               </div>
               <div className="flex items-center justify-center">
-                <div className="relative h-[350px] w-full overflow-hidden rounded-lg bg-muted">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#6750A4]/20 to-[#6750A4]/30 opacity-70"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="relative w-full h-full flex items-center justify-center">
-                      {/* Central AI/LLM Node */}
-                      <div className="absolute z-30 w-24 h-24 rounded-full bg-[#6750A4]/80 flex items-center justify-center border-2 border-[#6750A4] shadow-lg shadow-[#6750A4]/20">
-                        <div className="text-white font-bold text-lg">LLM</div>
-                      </div>
-
-                      {/* Blockchain Layer */}
-                      <div className="absolute w-64 h-64 rounded-full border-4 border-dashed border-[#6750A4]/40 animate-[spin_20s_linear_infinite]"></div>
-
-                      {/* Data Nodes */}
-                      {Array.from({ length: 8 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="absolute w-12 h-12 rounded-lg bg-background/80 backdrop-blur-sm flex items-center justify-center shadow-md"
-                          style={{
-                            transform: `rotate(${i * 45}deg) translateX(120px) rotate(-${i * 45}deg)`,
-                            animation: `pulse 3s infinite ease-in-out ${i * 0.2}s`,
-                          }}
-                        >
-                          {i % 4 === 0 && <Database className="h-5 w-5 text-[#6750A4]" />}
-                          {i % 4 === 1 && <Lock className="h-5 w-5 text-[#6750A4]" />}
-                          {i % 4 === 2 && <BarChart3 className="h-5 w-5 text-[#6750A4]" />}
-                          {i % 4 === 3 && <Layers className="h-5 w-5 text-[#6750A4]" />}
-                        </div>
-                      ))}
-
-                      {/* Connection Lines */}
-                      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 400">
-                        <defs>
-                          <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#6750A4" stopOpacity="0.2" />
-                            <stop offset="50%" stopColor="#6750A4" stopOpacity="0.6" />
-                            <stop offset="100%" stopColor="#6750A4" stopOpacity="0.2" />
-                          </linearGradient>
-                        </defs>
-                        {Array.from({ length: 8 }).map((_, i) => {
-                          const angle = i * 45 * (Math.PI / 180)
-                          const x = 200 + 120 * Math.cos(angle)
-                          const y = 200 + 120 * Math.sin(angle)
-                          return (
-                            <line
-                              key={i}
-                              x1="200"
-                              y1="200"
-                              x2={x}
-                              y2={y}
-                              stroke="url(#lineGradient)"
-                              strokeWidth="2"
-                              strokeDasharray="5,5"
-                              className="animate-pulse"
-                            />
-                          )
-                        })}
-                      </svg>
-
-                      {/* Structured Data Visualization */}
-                      <div className="absolute bottom-6 right-6 bg-background/80 backdrop-blur-sm p-3 rounded-lg border border-[#6750A4]/30">
-                        <div className="text-xs font-mono text-[#6750A4]">
-                          {"{"}
-                          <br />
-                          &nbsp;&nbsp;"structured": true,
-                          <br />
-                          &nbsp;&nbsp;"verified": true,
-                          <br />
-                          &nbsp;&nbsp;"source": "suithetic"
-                          <br />
-                          {"}"}
-                        </div>
-                      </div>
-                    </div>
+                <div className="relative w-full max-w-[500px] h-[500px] flex items-center justify-center mx-auto">
+                  <div className="absolute z-30 w-36 h-36 rounded-full bg-[#6750A4]/80 flex items-center justify-center border-2 border-[#6750A4] shadow-lg shadow-[#6750A4]/20">
+                    <div className="text-white font-bold text-xl">LLM</div>
                   </div>
+
+                  <div className="absolute w-96 h-96 rounded-full border-4 border-dashed border-[#6750A4]/40 animate-[spin_20s_linear_infinite]"></div>
+
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute w-18 h-18 rounded-lg bg-background/80 backdrop-blur-sm flex items-center justify-center shadow-md"
+                      style={{
+                        transform: `rotate(${i * 45}deg) translateX(180px) rotate(-${i * 45}deg)`,
+                        animation: `pulse 3s infinite ease-in-out ${i * 0.2}s`,
+                      }}
+                    >
+                      {i % 4 === 0 && <Database className="h-8 w-8 text-[#6750A4]" />}
+                      {i % 4 === 1 && <Lock className="h-8 w-8 text-[#6750A4]" />}
+                      {i % 4 === 2 && <BarChart3 className="h-8 w-8 text-[#6750A4]" />}
+                      {i % 4 === 3 && <Layers className="h-8 w-8 text-[#6750A4]" />}
+                    </div>
+                  ))}
+
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 500 500">
+                    <defs>
+                      <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#6750A4" stopOpacity="0.2" />
+                        <stop offset="50%" stopColor="#6750A4" stopOpacity="0.6" />
+                        <stop offset="100%" stopColor="#6750A4" stopOpacity="0.2" />
+                      </linearGradient>
+                    </defs>
+                    {Array.from({ length: 8 }).map((_, i) => {
+                      const angle = i * 45 * (Math.PI / 180)
+                      const x = 250 + 180 * Math.cos(angle)
+                      const y = 250 + 180 * Math.sin(angle)
+                      return (
+                        <line
+                          key={i}
+                          x1="250"
+                          y1="250"
+                          x2={x}
+                          y2={y}
+                          stroke="url(#lineGradient)"
+                          strokeWidth="2"
+                          strokeDasharray="5,5"
+                          className="animate-pulse"
+                        />
+                      )
+                    })}
+                  </svg>
                 </div>
               </div>
+            </div>
+          </div>
+          <div className="absolute bottom-16 right-16 md:right-16 bg-background/90 backdrop-blur-md p-4 rounded-lg border border-[#6750A4]/40 shadow-xl z-10">
+            <div className="text-sm font-mono text-[#6750A4]">
+              {"{"}
+              <br />
+              &nbsp;&nbsp;"structured": true,
+              <br />
+              &nbsp;&nbsp;"verified": true,
+              <br />
+              &nbsp;&nbsp;"source": "suithetic"
+              <br />
+              {"}"}
             </div>
           </div>
         </section>
