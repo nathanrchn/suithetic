@@ -1,3 +1,5 @@
+"use server";
+
 import { z } from "zod";
 import { google } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";

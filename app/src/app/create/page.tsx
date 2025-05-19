@@ -922,7 +922,12 @@ export default function CreatePage() {
                         Cancel
                       </Button>
                       {!uploadCompleted ? (
-                        <Button type="submit" onClick={handleConfirmUpload} disabled={isStoringDataset || numEpochs <= 0}>
+                        <Button
+                          type="submit"
+                          onClick={handleConfirmUpload}
+                          disabled={isStoringDataset || numEpochs <= 0}
+                          className="bg-[#6750A4] hover:bg-[#6750A4]/90"
+                        >
                           {isStoringDataset ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -933,7 +938,12 @@ export default function CreatePage() {
                           )}
                         </Button>
                       ) : (
-                        <Button type="submit" onClick={handleLockDataset} disabled={!form.getValues("datasetName").trim() || isLocking}>
+                        <Button
+                          type="submit"
+                          onClick={handleLockDataset}
+                          disabled={!form.getValues("datasetName").trim() || isLocking}
+                          className="bg-[#6750A4] hover:bg-[#6750A4]/90"
+                        >
                           {isLocking ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
