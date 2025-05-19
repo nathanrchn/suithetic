@@ -1,5 +1,5 @@
-import { CheckCircle, XCircle } from "lucide-react";
 import { verifyEd25519Signature } from "@/lib/utils";
+import { BadgeAlert, BadgeCheck } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function DatasetViewer({
@@ -11,33 +11,34 @@ export default function DatasetViewer({
   data: any[];
   maxLength?: number;
 }) {
+  const innerFeatures = features.slice();
   if (data.length > 0 && data[0].signature) {
-    features.push("Verified");
+    innerFeatures.push("Verified");
   }
-  return features.length > 0 && (
+  return innerFeatures.length > 0 && (
     <div className="space-y-4">
       <Table>
         <TableHeader>
-              <TableRow>
-              {features.map((feature) => (
-                <TableHead key={feature}>{feature}</TableHead>
-              ))}
-            </TableRow>
+          <TableRow>
+            {innerFeatures.map((feature) => (
+              <TableHead key={feature}>{feature}</TableHead>
+            ))}
+          </TableRow>
         </TableHeader>
         <TableBody>
           {data.map((row) => (
             <TableRow key={row.row_idx}>
-              {features.map((feature) => (
-                <TableCell 
-                key={feature} 
-                className="text-xs max-w-[250px] whitespace-pre-wrap break-words overflow-hidden"
+              {innerFeatures.map((feature) => (
+                <TableCell
+                key={feature}
+                className={`text-xs max-w-[250px] whitespace-pre-wrap break-words overflow-hidden`}
                 >
                 {
                   feature === "Verified" ? (
                     verifyEd25519Signature(row.signature, row.response_hash) ? (
-                      <CheckCircle className="text-green-500" />
+                      <BadgeCheck className="text-green-500" />
                     ) : (
-                      <XCircle className="text-red-500" />
+                      <BadgeAlert className="text-red-500" />
                     )
                   ) : row.row[feature].length > maxLength ? (
                     `${row.row[feature].slice(0, maxLength)}...`

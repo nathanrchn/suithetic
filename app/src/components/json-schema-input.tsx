@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { nanoid } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { Button } from "@/components/ui/button";
 import PropertyRow from "@/components/property-row";
 
@@ -66,7 +66,7 @@ const buildZodShapeRecursive = (
   return shape;
 };
 
-export default function JsonSchemaInput({ setSchema }: { setSchema: (schema: z.ZodObject<any> | null) => void }) {
+const JsonSchemaInputComponent = ({ setSchema }: { setSchema: (schema: z.ZodObject<any> | null) => void }) => {
   const [confirmed, setConfirmed] = useState(false);
   const [properties, setProperties] = useState<Property[]>([]);
 
@@ -212,3 +212,5 @@ export default function JsonSchemaInput({ setSchema }: { setSchema: (schema: z.Z
     </div>
   );
 }
+
+export default memo(JsonSchemaInputComponent);

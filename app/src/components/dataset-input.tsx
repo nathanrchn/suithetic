@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { HFDataset } from "@/lib/types";
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Check, ChevronsUpDown } from "lucide-react";
@@ -9,13 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 
-export default function DatasetInput({
+const DatasetInputComponent = ({
   dataset,
   setDataset
 }: {
   dataset: HFDataset | null;
   setDataset: (dataset: HFDataset) => void;
-}) {
+}) => {
   const [open, setOpen] = useState(false);
   const [popOpen, setPopOpen] = useState(false);
   const [path, setPath] = useState(dataset?.path || "");
@@ -220,3 +220,5 @@ export default function DatasetInput({
     </Dialog>
   )
 }
+
+export default memo(DatasetInputComponent);

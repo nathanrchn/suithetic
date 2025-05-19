@@ -3,7 +3,6 @@
 import * as z from "zod";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
-import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -18,6 +17,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import JsonSchemaInput from "@/components/json-schema-input";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generatePromptWithWizard, getRows, generateRow } from "@/app/create/actions";
@@ -111,11 +111,11 @@ export default function CreatePage() {
   const router = useRouter();
   const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();
-  const sealClient = new SealClient({
+  const sealClient = useMemo(() => new SealClient({
     suiClient,
     serverObjectIds: getAllowlistedKeyServers("testnet"),
     verifyKeyServers: false,
-  });
+  }), [suiClient]);
 
   const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction({
     execute: async ({ bytes, signature }) =>
@@ -145,8 +145,13 @@ export default function CreatePage() {
     mode: "onChange",
   });
 
+  const previewFeatures = useMemo(() => {
+    const inputFeature = form.getValues("inputFeature");
+    return inputFeature ? [inputFeature, "generated_output"] : ["generated_output"];
+  }, [form.watch("inputFeature")]);
+
   const selectedModelId = form.watch("modelId");
-  const selectedModel = models.find(m => m.id === selectedModelId) || null;
+  const selectedModel = useMemo(() => models.find(m => m.id === selectedModelId) || null, [models, selectedModelId]);
 
   useEffect(() => {
     const currentMaxTokens = form.getValues("maxTokens");
@@ -155,7 +160,7 @@ export default function CreatePage() {
     }
   }, [selectedModel, form]);
 
-  const handleTestGeneration = async () => {
+  const handleTestGeneration = useCallback(async () => {
     if (!dataset) return;
     if (previewAttempts >= MAX_PREVIEW_ATTEMPTS) {
       toast.warning("Preview Limit Reached", { description: "You have reached the maximum number of preview attempts." });
@@ -185,7 +190,7 @@ export default function CreatePage() {
       
       const testSamples = data.slice(0, 3).map((row) => row.row[inputFeature]);
 
-      const outputs: any[] = [];
+      const outputs: SyntheticDataResultItem[] = [];
       for (const sample of testSamples) {
         const { result, usage, signature, response_hash } = await generateRow(sample, generationConfig, generationConfig.maxTokens);
         outputs.push({
@@ -193,25 +198,27 @@ export default function CreatePage() {
           data: result,
           usage,
           signature,
-          response_hash,
+          responseHash: response_hash,
         });
       }
       
-      const preview = testSamples.map((input, index) => ({
+      const preview = outputs.map((item, index) => ({
         row_idx: index,
         row: {
-          [inputFeature]: input,
-          "generated_output": outputs[index] || "No output generated"
-        }
+          [inputFeature]: item.input,
+          "generated_output": item.data || "No output generated"
+        },
+        signature: item.signature,
+        response_hash: item.responseHash,
       }));
       
       setPreviewData(preview);
     } finally {
       setIsPreviewLoading(false);
     }
-  };
+  }, [dataset, previewAttempts, form, models, jsonSchema, data]);
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = useCallback(async (values: z.infer<typeof formSchema>) => {
     if (!dataset || !currentAccount?.address) {
       toast.error("Generation Failed", { description: "Dataset or current account not available for generation." });
       return;
@@ -273,56 +280,56 @@ export default function CreatePage() {
 
     tx.transferObjects([datasetObject], tx.pure.address(currentAccount.address));
 
-    signAndExecuteTransaction({ transaction: tx }, { onSuccess: async (result: any) => {
-      if (result.effects?.created?.[0]?.reference?.objectId) {
-        setDatasetObjectId(result.effects.created[0].reference.objectId);
-      } else {
-        toast.error("Transaction Error", { description: "Failed to get dataset object ID from transaction result." });
-        console.error("Failed to get dataset object ID from transaction result:", result);
-        return;
-      }
-
-      setIsDatasetGenerationLoading(true);
-    
-      try {
-        const generationConfig: GenerationConfig = {
-          model: currentModel.id,
-          inputFeature: values.inputFeature,
-          jsonSchema: values.isStructured && jsonSchema ? jsonSchema : undefined,
-          maxTokens: values.maxTokens,
-          prompt: values.prompt
-        };
-  
-        if (!dataset) {
-          toast.error("Dataset Generation Error", { description: "Dataset not selected or invalid." });
-          setSyntheticDatasetOutput([]);
-          setIsDatasetGenerationLoading(false);
+    signAndExecuteTransaction({ transaction: tx }, {
+      onSuccess: async (result: any) => {
+        if (result.effects?.created?.[0]?.reference?.objectId) {
+          setDatasetObjectId(result.effects.created[0].reference.objectId);
+        } else {
+          toast.error("Transaction Error", { description: "Failed to get dataset object ID from transaction result." });
+          console.error("Failed to get dataset object ID from transaction result:", result);
           return;
         }
-  
-        setSyntheticDatasetOutput([]); 
-  
-        const results = await generateSyntheticDataset(dataset, generationConfig);
-        setSyntheticDatasetOutput(results);
-  
-      } catch (error: any) {
-        const errorMessage = error.message || "An unknown error occurred on the server.";
-        toast.error("Dataset Generation Error", { description: `Client-side error: ${errorMessage}` });
-        setSyntheticDatasetOutput([]);
-      } finally {
-        setIsDatasetGenerationLoading(false);
-      }
-    },
-    onError: (error: any) => {
-      toast.error("Transaction Failed", { description: error.message || "An unknown error occurred during the transaction." });
-      console.error("Transaction failed:", error);
-    }
-  });
-  };
 
-  const sanitizeDataset = (dataset: SyntheticDataResultItem[]): Uint8Array => {
+        setIsDatasetGenerationLoading(true);
+    
+        try {
+          const generationConfig: GenerationConfig = {
+            model: currentModel.id,
+            inputFeature: values.inputFeature,
+            jsonSchema: values.isStructured && jsonSchema ? jsonSchema : undefined,
+            maxTokens: values.maxTokens,
+            prompt: values.prompt
+          };
+  
+          if (!dataset) {
+            toast.error("Dataset Generation Error", { description: "Dataset not selected or invalid." });
+            setSyntheticDatasetOutput([]);
+            setIsDatasetGenerationLoading(false);
+            return;
+          }
+  
+          setSyntheticDatasetOutput([]); 
+  
+          const outputs = await generateSyntheticDataset(dataset, generationConfig);
+          setSyntheticDatasetOutput(outputs);
+        } catch (error: any) {
+          const errorMessage = error.message || "An unknown error occurred on the server.";
+          toast.error("Dataset Generation Error", { description: `Client-side error: ${errorMessage}` });
+          setSyntheticDatasetOutput([]);
+        } finally {
+          setIsDatasetGenerationLoading(false);
+        }
+      },
+      onError: (error: any) => {
+        toast.error("Transaction Failed", { description: error.message || "An unknown error occurred during the transaction." });
+        console.error("Transaction failed:", error);
+      }
+    });
+  }, [dataset, currentAccount, models, suiClient, signAndExecuteTransaction, jsonSchema]);
+
+  const sanitizeDataset = useCallback((datasetToSanitize: SyntheticDataResultItem[]): Uint8Array => {
     const { inputFeature } = form.getValues();
-    const rows = dataset.map((item, index) => ({
+    const rows = datasetToSanitize.map((item, index) => ({
       row_idx: index,
       row: {
         [`${inputFeature || 'input'}`]: item.input,
@@ -346,9 +353,9 @@ export default function CreatePage() {
 
     const jsonString = JSON.stringify(jsonData);
     return new TextEncoder().encode(jsonString);
-  }
+  }, [form]);
 
-  const encryptBlob = async (data: Uint8Array): Promise<Uint8Array> => {
+  const encryptBlob = useCallback(async (dataToEncrypt: Uint8Array): Promise<Uint8Array> => {
     const nonce = crypto.getRandomValues(new Uint8Array(5));
     const datasetObjectBytes = fromHex(datasetObjectId!);
     const id = toHex(new Uint8Array([...datasetObjectBytes, ...nonce]));
@@ -356,31 +363,31 @@ export default function CreatePage() {
       threshold: 1,
       packageId: TESTNET_PACKAGE_ID,
       id,
-      data
+      data: dataToEncrypt
     })
     return encryptedBytes;
-  }
+  }, [datasetObjectId, sealClient]);
 
-  const encryptAndStoreDataset = async (dataset: SyntheticDataResultItem[], numEpochs: number, encrypt: boolean) => {
-    const data = sanitizeDataset(dataset);
+  const encryptAndStoreDataset = useCallback(async (datasetToStore: SyntheticDataResultItem[], numEpochsToStore: number, encrypt: boolean) => {
+    const dataToProcess = sanitizeDataset(datasetToStore);
     if (encrypt) {
-      const encryptedData = await encryptBlob(data);
-      return await storeBlob(encryptedData, numEpochs);
+      const encryptedData = await encryptBlob(dataToProcess);
+      return await storeBlob(encryptedData, numEpochsToStore);
     } else {
-      return await storeBlob(data, numEpochs);
+      return await storeBlob(dataToProcess, numEpochsToStore);
     }
-  }
+  }, [sanitizeDataset, encryptBlob]);
 
-  const handleEpochsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEpochsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value, 10);
     if (!isNaN(value) && value > 0) {
       setNumEpochs(value);
     } else if (e.target.value === "") {
       setNumEpochs(1);
     }
-  };
+  }, []);
 
-  const handleConfirmUpload = async () => {
+  const handleConfirmUpload = useCallback(async () => {
     if (syntheticDatasetOutput.length === 0) return;
     setIsStoringDataset(true);
     try {
@@ -394,17 +401,17 @@ export default function CreatePage() {
     } finally {
       setIsStoringDataset(false);
     }
-  };
+  }, [syntheticDatasetOutput, numEpochs, encryptAndStoreDataset]);
 
-  const handleCancelDialog = () => {
+  const handleCancelDialog = useCallback(() => {
     setIsUploadDialogOpen(false);
     setUploadCompleted(false);
     setSyntheticDatasetOutput([]);
     setNumEpochs(1);
     setDatasetBlobId(null);
-  };
+  }, []);
 
-  const handleLockDataset = async () => {
+  const handleLockDataset = useCallback(async () => {
     const currentDatasetName = form.getValues("datasetName");
     if (!datasetBlobId || !currentDatasetName.trim()) {
       toast.error("Locking Failed", { description: "Dataset Blob ID or Dataset Name is missing for locking." });
@@ -448,18 +455,18 @@ export default function CreatePage() {
     } finally {
       setIsLocking(false);
     }
-  };
+  }, [datasetBlobId, form, syntheticDatasetOutput, datasetObjectId, signAndExecuteTransaction, handleCancelDialog, router]);
 
-  const handleGeneratePromptWithWizard = async () => {
+  const handleGeneratePromptWithWizard = useCallback(async () => {
     setIsPromptGenerating(true);
     const prompt = await generatePromptWithWizard(wizardPrompt);
     form.setValue("prompt", prompt);
     setWizardPromptGenerated(true);
     setIsPromptGenerating(false);
     setIsWizardOpen(false);
-  };
+  }, [wizardPrompt, form]);
 
-  const colorFromAddress = (address: string): string => {
+  const colorFromAddress = useCallback((address: string): string => {
     const colors = [
       "#F87171",
       "#FBBF24",
@@ -469,7 +476,7 @@ export default function CreatePage() {
     ];
   
     return colors[parseInt(address.slice(0, 8), 16) % colors.length];
-  }
+  }, []);
 
   useEffect(() => {
     getModels().then((models) => {
@@ -495,6 +502,10 @@ export default function CreatePage() {
     }
   }, [syntheticDatasetOutput, isDatasetGenerationLoading, isUploadDialogOpen]);
 
+  const datasetViewMemo = useMemo(() => {
+    return <DatasetViewer features={features} data={data} />
+  }, [features, data]);
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -515,7 +526,7 @@ export default function CreatePage() {
                   <div className="mt-6">
                     <h3 className="text-lg font-semibold mb-2">Dataset Preview</h3>
                     <div className="border rounded-md p-4 max-h-[400px] overflow-y-auto">
-                      <DatasetViewer features={features} data={data} />
+                      {datasetViewMemo}
                     </div>
                   </div>
                 )}
@@ -737,7 +748,7 @@ export default function CreatePage() {
                         <h3 className="text-lg font-semibold mb-2">Preview Results</h3>
                         <div className="border rounded-md p-4 max-h-[400px] overflow-y-auto">
                           <DatasetViewer 
-                            features={[form.getValues("inputFeature"), "generated_output"]}
+                            features={previewFeatures}
                             data={previewData}
                           />
                         </div>
