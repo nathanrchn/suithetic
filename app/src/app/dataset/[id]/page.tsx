@@ -26,9 +26,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 
 export default function DatasetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const [isOwner, setIsOwner] = useState<boolean>(false);
   const [features, setFeatures] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isBuying, setIsBuying] = useState<boolean>(false);
+  const [hasAccess, setHasAccess] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [parsedData, setParsedData] = useState<any[] | null>(null);
@@ -72,8 +74,9 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
       }),
   });
 
-  const isOwner = currentAccount && dataset && currentAccount.address === dataset.owner;
-  const [hasAccess, setHasAccess] = useState<boolean>(isOwner || !!(dataset?.allowlist.includes(currentAccount?.address || "")));
+  useEffect(() => {
+    console.log("hasAccess", hasAccess);
+  }, [hasAccess]);
 
   const fetchDatasetData = useCallback(async () => {
     if (id) {
@@ -81,6 +84,9 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         setIsLoading(true);
         const ds = await getDataset(id);
         setDataset(ds);
+        const ownerCheck = currentAccount?.address === ds.owner;
+        setIsOwner(ownerCheck);
+        setHasAccess(ownerCheck || !!(ds?.allowlist.includes(currentAccount?.address || "notasuiaddress")));
         setEditablePrice(ds.price);
         setEditableVisibility(ds.visibility.inner);
         setError(null);
@@ -92,7 +98,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         setIsLoading(false);
       }
     }
-  }, [id]);
+  }, [id, currentAccount]);
 
   useEffect(() => {
     fetchDatasetData();
@@ -203,7 +209,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         setFeatures([]);
         setIsLoading(false);
       });
-  }, [dataset, currentAccount]);
+  }, [dataset, currentAccount, hasAccess]);
 
   useEffect(() => {
     if (decryptedBytes) {
@@ -290,6 +296,10 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
       }
     );
   };
+
+  const getShortModelName = (modelName: string) => {
+    return modelName.split("/").pop();
+  }
 
   const handleBuyDataset = async () => {
     if (!dataset || !currentAccount || dataset.price <= 0) return;
@@ -405,6 +415,32 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
               {dataset.visibility.inner === 0 ? "Public" : "Private"}
             </Badge>
           </div>
+          <div className="flex flex-wrap items-center gap-2 mt-2 mb-3">
+            {dataset.modelMetadata?.name && (
+              <Link
+                href={`https://huggingface.co/${dataset.modelMetadata.name}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Badge variant="outline" className="text-xs">
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  {getShortModelName(dataset.modelMetadata.name)}
+                </Badge>
+              </Link>
+            )}
+            {dataset.hfMetadata?.path && (
+              <Link
+                href={`https://huggingface.co/datasets/${dataset.hfMetadata.path}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Badge variant="outline" className="text-xs">
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  {dataset.hfMetadata.path}
+                </Badge>
+              </Link>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {isOwner && (
@@ -468,7 +504,13 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
             </Dialog>
           )}
           {currentAccount && !hasAccess && dataset && dataset.price > 0 && dataset.visibility.inner === 0 && (
-            <Button onClick={handleBuyDataset} variant="default" title={`Buy Access for ${dataset.price / MIST_PER_USDC} USDC`} disabled={isLoading || isProcessingTx || isBuying}>
+            <Button
+              onClick={handleBuyDataset}
+              variant="default"
+              title={`Buy Access for ${dataset.price / MIST_PER_USDC} USDC`}
+              disabled={isLoading || isProcessingTx || isBuying}
+              className="bg-[#6750A4] hover:bg-[#6750A4]/90"
+            >
               {isBuying ? (
                 <Loader2 size={18} className="mr-2 animate-spin" />
               ) : (
@@ -482,118 +524,46 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
                 <Download size={18} className="mr-2" /> Download
             </Button>
           )}
-          {dataset.hfMetadata?.path && (
-            <a 
-              href={`https://huggingface.co/datasets/${dataset.hfMetadata.path}`} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className={buttonVariants({ variant: "outline" })}
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              View on Hugging Face
-            </a>
-          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
           <div className="flex flex-col gap-6">
             <p className="text-base">{dataset.description || "No description provided."}</p>
-
-            <Tabs defaultValue="overview">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="metadata">Metadata</TabsTrigger>
-                <TabsTrigger value="model">Model Info</TabsTrigger>
-              </TabsList>
-              <TabsContent value="overview" className="space-y-4 pt-4">
-                <Card>
-                  <CardHeader><CardTitle className="text-lg">Dataset Information</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Rows</p>
-                        <p className="text-lg">{dataset.metadata.numRows?.toLocaleString() ?? "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Tokens</p>
-                        <p className="text-lg">{dataset.metadata.numTokens?.toLocaleString() ?? "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Downloads</p>
-                        <p className="text-lg">{dataset.stats.numDownloads?.toLocaleString() ?? "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Version</p>
-                        <p className="text-lg">{dataset.version ?? "N/A"}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              <TabsContent value="metadata" className="space-y-4 pt-4">
-                <Card>
-                  <CardHeader><CardTitle className="text-lg">Hugging Face Metadata</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Path</p>
-                        <p className="text-base font-mono">{dataset.hfMetadata?.path ?? "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Config</p>
-                        <p className="text-base font-mono">{dataset.hfMetadata?.config ?? "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Split</p>
-                        <p className="text-base font-mono">{dataset.hfMetadata?.split ?? "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Revision</p>
-                        <p className="text-base font-mono">{dataset.hfMetadata?.revision ?? "N/A"}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              <TabsContent value="model" className="space-y-4 pt-4">
-                <Card>
-                  <CardHeader><CardTitle className="text-lg">Model Information</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Model Name</p>
-                        <p className="text-base">{dataset.modelMetadata?.name ?? "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Task ID</p>
-                        <p className="text-base">{dataset.modelMetadata?.taskSmallId ?? "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Node ID</p>
-                        <p className="text-base">{dataset.modelMetadata?.nodeSmallId ?? "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Price per 1M Compute Units (USDC)</p>
-                        <p className="text-base">
-                          {dataset.modelMetadata.pricePerOneMillionComputeUnits / MIST_PER_USDC} USDC
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Max Compute Units</p>
-                        <p className="text-base">
-                          {dataset.modelMetadata?.maxNumComputeUnits !== undefined 
-                            ? Number(dataset.modelMetadata.maxNumComputeUnits).toLocaleString() 
-                            : "N/A"}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
           </div>
+
+          {dataset && currentAccount && !isLoading && parsedData && features.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Dataset Content Preview</CardTitle>
+                <CardDescription>Decrypted and parsed content from the dataset.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DatasetViewer features={features} data={parsedData} />
+              </CardContent>
+            </Card>
+          )}
+
+          {dataset && currentAccount && isLoading && dataset.blobId && !error && (
+            <div className="p-4 border rounded-lg shadow bg-blue-100 text-blue-700 flex items-center">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Loading and decrypting dataset content... Please wait.
+            </div>
+          )}
+
+          {currentAccount && !isLoading && !parsedData && dataset?.blobId && hasAccess && (
+            <div className="p-4 border rounded-lg shadow bg-yellow-100 text-yellow-800 flex items-center">
+              <AlertCircle className="mr-2 h-5 w-5" /> 
+              Attempting to load dataset content, but no data is available for display. Either you haven't access to the dataset or this could be due to decryption issues.
+            </div>
+          )}
+
+          {!currentAccount && dataset && (
+            <div className="p-4 border rounded-lg shadow bg-blue-100 text-blue-700 flex items-center">
+              <AlertCircle className="mr-2 h-5 w-5" /> Please connect your wallet to attempt decryption and view dataset contents.
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-1">
@@ -636,43 +606,20 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
                     </p>
                   </div>
                 </div>
+                <div className="flex items-start gap-2">
+                  <Download className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">Downloads</p>
+                    <p className="text-sm">
+                      {dataset.stats.numDownloads?.toLocaleString() ?? "N/A"}
+                    </p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
-      
-      {dataset && currentAccount && isLoading && dataset.blobId && !error && (
-        <div className="p-4 border rounded-lg shadow bg-blue-100 text-blue-700 flex items-center">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Loading and decrypting dataset content... Please wait.
-        </div>
-      )}
-
-      {currentAccount && !isLoading && !parsedData && dataset?.blobId && hasAccess && (
-        <div className="p-4 border rounded-lg shadow bg-yellow-100 text-yellow-800 flex items-center">
-          <AlertCircle className="mr-2 h-5 w-5" /> 
-          Attempting to load dataset content, but no data is available for display. Either you haven't access to the dataset or this could be due to decryption issues.
-        </div>
-      )}
-
-      {dataset && currentAccount && !isLoading && parsedData && features.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Dataset Content Preview</CardTitle>
-            <CardDescription>Decrypted and parsed content from the dataset.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DatasetViewer features={features} data={parsedData} />
-          </CardContent>
-        </Card>
-      )}
-
-      {!currentAccount && dataset && (
-         <div className="p-4 border rounded-lg shadow bg-blue-100 text-blue-700 flex items-center">
-          <AlertCircle className="mr-2 h-5 w-5" /> Please connect your wallet to attempt decryption and view dataset contents.
-        </div>
-      )}
     </div>
   );
 }

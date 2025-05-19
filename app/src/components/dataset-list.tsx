@@ -10,6 +10,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 export function DatasetList({ datasets }: { datasets: DatasetObject[] }) {
   const shortAddress = (address: string) => address.slice(0, 6) + "..." + address.slice(-4);
 
+  const getShortModelName = (modelName: string) => {
+    return modelName.split("/").pop();
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
       {datasets.map((dataset) => (
@@ -26,20 +30,23 @@ export function DatasetList({ datasets }: { datasets: DatasetObject[] }) {
                     </div>
                   </CardDescription>
                 </div>
-                <Badge variant={dataset.visibility.inner > 0 ? "secondary" : "outline"}>
-                  {dataset.visibility.inner > 0 ? "Public" : "Private"}
+                <Badge variant={dataset.visibility.inner === 0 ? "secondary" : "outline"}>
+                  {dataset.visibility.inner === 0 ? "Public" : "Private"}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="pb-2">
               <p className="text-sm text-muted-foreground line-clamp-3">{dataset.description}</p>
-              <div className="flex items-center gap-2 mt-4">
+              <div className="flex flex-wrap items-center gap-2 mt-4">
                 <Badge variant="outline" className="flex items-center gap-1">
                   <FileText className="h-3 w-3" />
                   {dataset.metadata.numRows.toLocaleString()} rows
                 </Badge>
                 <Badge variant="outline" className="flex items-center gap-1">
                   {dataset.hfMetadata.config}/{dataset.hfMetadata.split}
+                </Badge>
+                <Badge variant="outline" className="flex items-center gap-1">
+                  {getShortModelName(dataset.modelMetadata.name)}
                 </Badge>
               </div>
             </CardContent>

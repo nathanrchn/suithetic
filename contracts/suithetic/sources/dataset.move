@@ -188,10 +188,10 @@ module suithetic::dataset {
         self.allowlist.push_back(ctx.sender());
     }
 
-    public fun change_visibility(self: &mut Dataset, visibility: u16, ctx: &mut TxContext) {
+    public fun change_name(self: &mut Dataset, name: String, ctx: &mut TxContext) {
         assert!(self.owner == ctx.sender(), ENoAccess);
 
-        self.visibility.inner = visibility;
+        self.name = name;
     }
 
     public fun change_price(self: &mut Dataset, price: u64, ctx: &mut TxContext) {
