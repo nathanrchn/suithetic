@@ -35,11 +35,13 @@ const generateSyntheticDataset = async (dataset: HFDataset, generationConfig: Ge
 
   let offset = 0;
   let totalTokensUsed = 0;
-  let rows: any[] = await getRows(dataset, offset, 100, generationConfig.model);
-
+  let rows: any[] = await getRows(dataset, offset, 10, generationConfig.model);
+  offset += 10;
+  
   while (totalTokensUsed < generationConfig.maxTokens) {
     if (rows.length === 0) {
-      rows = await getRows(dataset, offset, 100, generationConfig.model);
+      rows = await getRows(dataset, offset, 10, generationConfig.model);
+      offset += 10;
     }
 
     const row = rows.shift();
