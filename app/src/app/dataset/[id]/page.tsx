@@ -73,7 +73,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
   });
 
   const isOwner = currentAccount && dataset && currentAccount.address === dataset.owner;
-  const [hasAccess, setHasAccess] = useState<boolean>(!isOwner);
+  const [hasAccess, setHasAccess] = useState<boolean>(isOwner || !!(dataset?.allowlist.includes(currentAccount?.address || "")));
 
   const fetchDatasetData = useCallback(async () => {
     if (id) {
@@ -176,7 +176,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
       return;
     }
 
-    if (decryptedBytes || dataset.visibility.inner === 1) {
+    if (decryptedBytes || dataset.visibility.inner === 1 || !hasAccess) {
       setIsLoading(false);
       return;
     }
@@ -649,7 +649,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         </div>
       )}
 
-      {currentAccount && !isLoading && !parsedData && dataset?.blobId && (
+      {currentAccount && !isLoading && !parsedData && dataset?.blobId && hasAccess && (
         <div className="p-4 border rounded-lg shadow bg-yellow-100 text-yellow-800 flex items-center">
           <AlertCircle className="mr-2 h-5 w-5" /> 
           Attempting to load dataset content, but no data is available for display. Either you haven't access to the dataset or this could be due to decryption issues.

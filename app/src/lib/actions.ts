@@ -445,6 +445,7 @@ const _mapRawObjectToDatasetObject = (rawObject: any): DatasetObject => {
       pricePerOneMillionComputeUnits: fields.model_metadata.fields.price_per_one_million_compute_units,
       maxNumComputeUnits: fields.model_metadata.fields.max_num_compute_units,
     },
+    allowlist: fields.allowlist,
   };
 };
 

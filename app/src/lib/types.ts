@@ -86,6 +86,7 @@ export type DatasetObject = {
   hfMetadata: HFDatasetMetadata;
   stats: DatasetStats;
   modelMetadata: ModelOnChainMetadata;
+  allowlist: string[];
 };
 
 export type DatasetListedEventObject = {
