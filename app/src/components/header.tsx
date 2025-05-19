@@ -91,7 +91,7 @@ export default function Header() {
               open={isModalOpen}
               onOpenChange={setIsModalOpen}
               trigger={
-                <Button variant="outline">
+                <Button variant="outline" className="hover:bg-[#6750A4] hover:text-white">
                   Connect Wallet
                 </Button>
               }
