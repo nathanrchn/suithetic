@@ -37,7 +37,7 @@ export default function Home() {
             </Link>
           </nav>
           <div>
-            <Button asChild>
+            <Button asChild className="bg-[#6750A4]">
               <Link href={appLink} className="flex items-center gap-1">
                 Launch App <ExternalLink className="h-4 w-4" />
               </Link>
@@ -53,7 +53,7 @@ export default function Home() {
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
-                    Structured Synthetic Data on the SUI Blockchain
+                    Verified Structured Synthetic Data on SUI for Agentic AI Training
                   </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
                     Suithetic generates structured, verifiable synthetic data using LLMs, securely
@@ -61,13 +61,15 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Button size="lg" asChild>
+                  <Button size="lg" asChild className="bg-[#6750A4]">
                     <Link href={appLink}>
                       Launch App <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
-                  <Button variant="outline" size="lg">
-                    Learn More
+                  <Button variant="outline" size="lg" asChild>
+                    <Link href="#features">
+                      Learn More <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
                   </Button>
                 </div>
               </div>
@@ -197,7 +199,7 @@ export default function Home() {
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold">Encrypted Security</h3>
                   <p className="text-muted-foreground">
-                    Protect sensitive data with on-chain encryption using Seal, maintaining privacy while preserving
+                    Protect the generated dataset with on-chain encryption using Seal, maintaining privacy while preserving
                     verifiability.
                   </p>
                 </div>
@@ -249,7 +251,7 @@ export default function Home() {
                     <div className="grid gap-1">
                       <h3 className="text-xl font-bold">3. Encryption</h3>
                       <p className="text-muted-foreground">
-                        Protect sensitive information with Seal's on-chain encryption, maintaining privacy while
+                        Protect the generated dataset with Seal's on-chain encryption, maintaining privacy while
                         preserving verifiability.
                       </p>
                     </div>
@@ -340,7 +342,7 @@ export default function Home() {
                   </h2>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
                     Buy and sell access to high-quality, verifiable datasets through our decentralized marketplace
-                    powered by the SUI blockchain.
+                    powered by SUI.
                   </p>
                 </div>
                 <ul className="grid gap-2">
@@ -370,7 +372,7 @@ export default function Home() {
                   </li>
                 </ul>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Button size="lg" asChild>
+                  <Button size="lg" asChild className="bg-[#6750A4]">
                     <Link href={appLink}>
                       Explore Marketplace <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
