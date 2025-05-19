@@ -25,14 +25,13 @@ export type GenerationConfig = {
 export type SyntheticDataResultItem = {
   input?: any;
   data?: any;
-  success: boolean;
-  error?: string;
   usage?: {
     promptTokens?: number;
     completionTokens?: number;
     totalTokens?: number;
   };
   signature?: string;
+  responseHash?: string;
 };
 
 export type AtomaModel = {

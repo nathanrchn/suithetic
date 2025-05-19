@@ -1,6 +1,6 @@
-"use client";
-
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { CheckCircle, XCircle } from "lucide-react";
+import { verifyEd25519Signature } from "@/lib/utils";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function DatasetViewer({
   features,
@@ -11,6 +11,9 @@ export default function DatasetViewer({
   data: any[];
   maxLength?: number;
 }) {
+  if (data.length > 0 && data[0].signature) {
+    features.push("Verified");
+  }
   return features.length > 0 && (
     <div className="space-y-4">
       <Table>
@@ -28,8 +31,20 @@ export default function DatasetViewer({
                 <TableCell 
                 key={feature} 
                 className="text-xs max-w-[250px] whitespace-pre-wrap break-words overflow-hidden"
-              >
-                {row.row[feature].length > maxLength ? `${row.row[feature].slice(0, maxLength)}...` : row.row[feature]}
+                >
+                {
+                  feature === "Verified" ? (
+                    verifyEd25519Signature(row.signature, row.response_hash) ? (
+                      <CheckCircle className="text-green-500" />
+                    ) : (
+                      <XCircle className="text-red-500" />
+                    )
+                  ) : row.row[feature].length > maxLength ? (
+                    `${row.row[feature].slice(0, maxLength)}...`
+                  ) : (
+                    row.row[feature]
+                  )
+                }
               </TableCell>
               ))}
             </TableRow>

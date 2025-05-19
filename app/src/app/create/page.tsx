@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Sparkles } from "lucide-react";
 import { fromHex, toHex } from "@mysten/sui/utils";
 import { Textarea } from "@/components/ui/textarea";
+import { getModels, storeBlob } from "@/lib/actions";
 import DatasetInput from "@/components/dataset-input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Transaction } from "@mysten/sui/transactions";
@@ -19,14 +20,47 @@ import DatasetViewer from "@/components/dataset-viewer";
 import JsonSchemaInput from "@/components/json-schema-input";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { generatePromptWithWizard, getRows, generateRow } from "@/app/create/actions";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT, MIST_PER_USDC, TESTNET_USDC_TYPE } from "@/lib/constants";
-import { getModels, generatePreview, generateSyntheticData, storeBlob, generatePromptWithWizard } from "@/lib/actions";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+
+const generateSyntheticDataset = async (dataset: HFDataset, generationConfig: GenerationConfig) => {
+  const output: SyntheticDataResultItem[] = [];
+
+  let offset = 0;
+  let totalTokensUsed = 0;
+  let rows: any[] = await getRows(dataset, offset, 100, generationConfig.model);
+
+  while (totalTokensUsed < generationConfig.maxTokens) {
+    if (rows.length === 0) {
+      rows = await getRows(dataset, offset, 100, generationConfig.model);
+    }
+
+    const row = rows.shift();
+    if (!row) {
+      break;
+    }
+
+    const { result, usage, signature, response_hash } = await generateRow(row, generationConfig, generationConfig.maxTokens - totalTokensUsed);
+    totalTokensUsed += usage.totalTokens;
+
+    output.push({
+      input: row,
+      data: result,
+      usage,
+      signature,
+      responseHash: response_hash,
+    });
+  }
+
+  return output;
+}
 
 
 const formSchema = z.object({
@@ -150,7 +184,18 @@ export default function CreatePage() {
       };
       
       const testSamples = data.slice(0, 3).map((row) => row.row[inputFeature]);
-      const outputs = await generatePreview(generationConfig, testSamples);
+
+      const outputs: any[] = [];
+      for (const sample of testSamples) {
+        const { result, usage, signature, response_hash } = await generateRow(sample, generationConfig, generationConfig.maxTokens);
+        outputs.push({
+          input: sample,
+          data: result,
+          usage,
+          signature,
+          response_hash,
+        });
+      }
       
       const preview = testSamples.map((input, index) => ({
         row_idx: index,
@@ -250,24 +295,20 @@ export default function CreatePage() {
   
         if (!dataset) {
           toast.error("Dataset Generation Error", { description: "Dataset not selected or invalid." });
-          setSyntheticDatasetOutput([
-            { success: false, error: "Dataset not selected or invalid." }
-          ]);
+          setSyntheticDatasetOutput([]);
           setIsDatasetGenerationLoading(false);
           return;
         }
   
         setSyntheticDatasetOutput([]); 
   
-        const results = await generateSyntheticData(dataset, generationConfig, {});
+        const results = await generateSyntheticDataset(dataset, generationConfig);
         setSyntheticDatasetOutput(results);
   
       } catch (error: any) {
         const errorMessage = error.message || "An unknown error occurred on the server.";
         toast.error("Dataset Generation Error", { description: `Client-side error: ${errorMessage}` });
-        setSyntheticDatasetOutput([
-          { success: false, error: `Client-side error: ${errorMessage}` }
-        ]);
+        setSyntheticDatasetOutput([]);
       } finally {
         setIsDatasetGenerationLoading(false);
       }
@@ -287,6 +328,8 @@ export default function CreatePage() {
         [`${inputFeature || 'input'}`]: item.input,
         "generated_output": item.data
       },
+      signature: item.signature,
+      response_hash: item.responseHash,
       truncated_cells: []
     }));
 
@@ -643,7 +686,7 @@ export default function CreatePage() {
                     {isWizardOpen && wizardPrompt && !wizardPromptGenerated ? (
                       <Button 
                         type="button"
-                        className="w-full" 
+                        className="w-full bg-[#6750A4] hover:bg-[#6750A4]/90"
                         size="lg"
                         disabled={isPromptGenerating}
                         onClick={handleGeneratePromptWithWizard}
@@ -661,16 +704,16 @@ export default function CreatePage() {
                         )}
                       </Button>
                     ) : (
-                      <Button 
+                      <Button
                         type="button"
-                        className="w-full" 
+                        className="w-full bg-[#6750A4] hover:bg-[#6750A4]/90"
                         size="lg"
                         disabled={
-                          !form.getValues("modelId") || 
-                          !form.getValues("inputFeature") || 
-                          !form.getValues("prompt") || 
-                          (form.getValues("isStructured") && !jsonSchema) || 
-                          isPreviewLoading || 
+                          !form.watch("modelId") ||
+                          !form.watch("inputFeature") ||
+                          !form.watch("prompt").includes("{input}") ||
+                          (form.watch("isStructured") && !jsonSchema) ||
+                          isPreviewLoading ||
                           previewAttempts >= MAX_PREVIEW_ATTEMPTS ||
                           !currentAccount
                         }
@@ -813,7 +856,7 @@ export default function CreatePage() {
                   <CardContent className="space-y-6">
                     <Button 
                       type="submit"
-                      className="w-full" 
+                      className="w-full bg-[#6750A4] hover:bg-[#6750A4]/90"
                       size="lg"
                       variant="default"
                       disabled={

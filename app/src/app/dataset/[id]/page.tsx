@@ -8,15 +8,14 @@ import { fromHex } from "@mysten/sui/utils";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { getBlob, getDataset } from "@/lib/actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import { EncryptedObject, SealClient } from "@mysten/seal";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { getAllowlistedKeyServers, SessionKey } from "@mysten/seal";
 import { use, useState, useEffect, useCallback, useMemo } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MIST_PER_USDC, TESTNET_PACKAGE_ID, TESTNET_USDC_TYPE } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -73,10 +72,6 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
         options: { showEffects: true },
       }),
   });
-
-  useEffect(() => {
-    console.log("hasAccess", hasAccess);
-  }, [hasAccess]);
 
   const fetchDatasetData = useCallback(async () => {
     if (id) {
@@ -221,9 +216,11 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
           const extractedFeatures = rawParsedData.features.map((feature: { name: string }) => feature.name);
           setFeatures(extractedFeatures);
 
-          const formattedForViewer = rawParsedData.rows.map((dataRow: { row_idx: number, row: any }) => ({
+          const formattedForViewer = rawParsedData.rows.map((dataRow: { row_idx: number, row: any, signature: string, response_hash: string }) => ({
             row_idx: dataRow.row_idx,
             row: dataRow.row,
+            signature: dataRow.signature,
+            response_hash: dataRow.response_hash,
           }));
           setParsedData(formattedForViewer);
 
