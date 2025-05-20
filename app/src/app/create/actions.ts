@@ -60,12 +60,29 @@ export async function generateRow(row: string, config: GenerationConfig, maxToke
   }
 }
 
-export async function generatePromptWithWizard(prompt: string) {
+export async function generatePromptWithWizard(prompt: string, inputFeature: string, example: string) {
+  const wizardInstructionPrompt = `You are an expert prompt engineer. A user wants to generate a synthetic dataset and has provided the following description of their goal:
+  "${prompt}"
+
+  The user has specified that the primary input feature from their source dataset is named '${inputFeature}'.
+  Here is an example of what the data for this input feature looks like: "${example}"
+
+Based on the user's goal, the input feature name, and the example data, create a clear, concise, and effective prompt that will be used by another AI to generate individual synthetic data entries. This generated prompt MUST:
+1. Directly address the user's described goal.
+2. Be suitable for generating high-quality, realistic synthetic data relevant to the provided example.
+3. Include the exact placeholder '{input}' where a single data point (like the example provided for '${inputFeature}') will be injected. Do not use any other placeholder format.
+
+The final generated prompt should be ready to use for data generation.
+Example of a good output if user wants summaries of articles (and inputFeature was 'articleText'): "Summarize the following article in 3 sentences: {input}"
+Example of a good output if user wants to classify customer feedback (and inputFeature was 'feedbackComment'): "Classify the sentiment of this customer feedback as positive, negative, or neutral: {input}"
+
+Generated Prompt for Data Synthesis:`;
+
   const { object: promptObject } = await generateObject({
-    model: google("gemini-2.5-flash-preview-04-17"),
-    prompt: "Give me an image prompt.",
+    model: google("gemini-2.5-flash-preview-05-20"),
+    prompt: wizardInstructionPrompt,
     schema: z.object({
-      prompt: z.string().describe("The prompt to generate an image from"),
+      prompt: z.string().describe("A detailed and effective prompt for an AI model to generate synthetic data. This prompt must include the '{input}' placeholder to be replaced with the actual row data."),
     }),
     temperature: 0.3,
   })

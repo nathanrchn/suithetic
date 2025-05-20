@@ -92,8 +92,8 @@ export default function CreatePage() {
   const [models, setModels] = useState<AtomaModel[]>([]);
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [isLocking, setIsLocking] = useState<boolean>(false);
-  const [dataset, setDataset] = useState<HFDataset | null>(null);
   const [wizardPrompt, setWizardPrompt] = useState<string>("");
+  const [dataset, setDataset] = useState<HFDataset | null>(null);
   const [isWizardOpen, setIsWizardOpen] = useState<boolean>(true);
   const [previewAttempts, setPreviewAttempts] = useState<number>(0);
   const [uploadCompleted, setUploadCompleted] = useState<boolean>(false);
@@ -461,12 +461,14 @@ export default function CreatePage() {
 
   const handleGeneratePromptWithWizard = useCallback(async () => {
     setIsPromptGenerating(true);
-    const prompt = await generatePromptWithWizard(wizardPrompt);
+    const inputFeature = form.getValues("inputFeature");
+    const example = data[0].row[inputFeature];
+    const prompt = await generatePromptWithWizard(wizardPrompt, inputFeature, example);
     form.setValue("prompt", prompt);
     setWizardPromptGenerated(true);
     setIsPromptGenerating(false);
     setIsWizardOpen(false);
-  }, [wizardPrompt, form]);
+  }, [wizardPrompt, form, data]);
 
   const colorFromAddress = useCallback((address: string): string => {
     const colors = [
