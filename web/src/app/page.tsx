@@ -211,7 +211,7 @@ export default function Home() {
             </div>
             <div className="mx-auto grid max-w-5xl items-center gap-6 py-12 lg:grid-cols-2 lg:gap-12">
               <Image
-                src="/placeholder.svg?height=400&width=500"
+                src="/tech.svg"
                 width={500}
                 height={400}
                 alt="Suithetic Technology Stack"
@@ -373,7 +373,7 @@ export default function Home() {
                   <div className="absolute inset-0 bg-gradient-to-br from-violet-500/20 to-purple-700/30 opacity-70"></div>
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Image
-                      src="/placeholder.svg?height=300&width=400"
+                      src="/marketplace.png"
                       width={400}
                       height={300}
                       alt="Data Marketplace Visualization"
