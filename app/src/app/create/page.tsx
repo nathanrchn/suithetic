@@ -13,6 +13,7 @@ import { fromHex, toHex } from "@mysten/sui/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { getModels, storeBlob } from "@/lib/actions";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import DatasetInput from "@/components/dataset-input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Transaction } from "@mysten/sui/transactions";
@@ -29,7 +30,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT, MIST_PER_USDC, TESTNET_USDC_TYPE } from "@/lib/constants";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-
 
 const generateSyntheticDataset = async (dataset: HFDataset, generationConfig: GenerationConfig, setProgress: (progress: number) => void) => {
   const output: SyntheticDataResultItem[] = [];
@@ -50,12 +50,14 @@ const generateSyntheticDataset = async (dataset: HFDataset, generationConfig: Ge
       break;
     }
 
-    const { result, usage, signature, response_hash } = await generateRow(row.row[generationConfig.inputFeature], generationConfig, generationConfig.maxTokens - totalTokensUsed);
+    const rowData = row.row[generationConfig.inputFeature];
+
+    const { result, usage, signature, response_hash } = await generateRow(rowData, generationConfig, generationConfig.maxTokens - totalTokensUsed);
     totalTokensUsed += usage.totalTokens;
     setProgress(totalTokensUsed / generationConfig.maxTokens);
 
     output.push({
-      input: row,
+      input: rowData,
       data: result,
       usage,
       signature,
@@ -188,7 +190,7 @@ export default function CreatePage() {
       const generationConfig: GenerationConfig = {
         model: currentModel.id,
         inputFeature,
-        jsonSchema: isStructured && jsonSchema ? jsonSchema : undefined,
+        jsonSchema: isStructured && jsonSchema ? zodToJsonSchema(jsonSchema) : undefined,
         maxTokens,
         prompt
       };
@@ -301,7 +303,7 @@ export default function CreatePage() {
           const generationConfig: GenerationConfig = {
             model: currentModel.id,
             inputFeature: values.inputFeature,
-            jsonSchema: values.isStructured && jsonSchema ? jsonSchema : undefined,
+            jsonSchema: values.isStructured && jsonSchema ? zodToJsonSchema(jsonSchema) : undefined,
             maxTokens: values.maxTokens,
             prompt: values.prompt
           };
@@ -323,6 +325,7 @@ export default function CreatePage() {
           setSyntheticDatasetOutput([]);
         } finally {
           setIsDatasetGenerationLoading(false);
+          setProgress(0);
         }
       },
       onError: (error: any) => {

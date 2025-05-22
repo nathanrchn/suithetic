@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 export type HFDataset = {
   path: string;
   config: string;
@@ -19,7 +17,7 @@ export type GenerationConfig = {
   inputFeature: string;
   maxTokens: number;
   prompt: string;
-  jsonSchema?: z.ZodObject<any>;
+  jsonSchema?: any;
 }
 
 export type SyntheticDataResultItem = {

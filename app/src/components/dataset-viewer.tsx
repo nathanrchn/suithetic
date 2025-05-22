@@ -45,6 +45,14 @@ export default function DatasetViewer({
                     ) : (
                       <BadgeAlert className="text-red-500" />
                     )
+                  ) : typeof row.row[feature] === 'object' && row.row[feature] !== null ? (
+                    (() => {
+                      const jsonString = JSON.stringify(row.row[feature], null, 2);
+                      if (jsonString.length > maxLength && selectedRow !== index) {
+                        return `${jsonString.slice(0, maxLength)}...`;
+                      }
+                      return jsonString;
+                    })()
                   ) : row.row[feature].length > maxLength && selectedRow != index ? (
                     `${row.row[feature].slice(0, maxLength)}...`
                   ) : (

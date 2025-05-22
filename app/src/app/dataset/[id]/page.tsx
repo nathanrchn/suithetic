@@ -477,15 +477,8 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
                       <Input
                         id="editablePrice"
                         type="number"
-                        value={editablePrice ? editablePrice / MIST_PER_USDC : ""}
-                        onChange={(e) => {
-                          const value = Number(e.target.value);
-                          if (isNaN(value)) {
-                            setEditablePrice(null);
-                          } else {
-                            setEditablePrice(value * MIST_PER_USDC);
-                          }
-                        }}
+                        value={editablePrice ? editablePrice : ""}
+                        onChange={(e) => setEditablePrice(Number(e.target.value))}
                         min="0"
                       />
                     </div>

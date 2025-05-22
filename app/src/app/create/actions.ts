@@ -5,6 +5,7 @@ import { google } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject, generateText } from "ai";
 import { GenerationConfig, HFDataset } from "@/lib/types";
+import { JSONSchemaToZod } from "@dmitryrechkin/json-schema-to-zod";
 
 const atoma = createOpenAI({
   apiKey: process.env.ATOMA_API_KEY,
@@ -24,38 +25,51 @@ type ResponseBody = {
 }
 
 export async function generateRow(row: string, config: GenerationConfig, maxTokens: number) {
-  const prompt = config.prompt.replace("{input}", row);
+  try {
+    const prompt = config.prompt.replace("{input}", row);
 
-  if (config.jsonSchema) {
-    const { object, usage, response: { body } } = await generateObject({
-      model: atoma(config.model),
-      prompt,
-      schema: config.jsonSchema,
-      maxTokens,
-    });
+    if (config.jsonSchema) {
+      const { object, usage, response: { body } } = await generateObject({
+        model: atoma(config.model),
+        prompt,
+        schema: JSONSchemaToZod.convert(config.jsonSchema),
+        maxTokens,
+      });
 
-    const { signature, response_hash } = body as ResponseBody;
+      const { signature, response_hash } = body as ResponseBody;
 
+      return {
+        result: object,
+        usage,
+        signature,
+        response_hash,
+      };
+    } else {
+      const { text, usage, response: { body } } = await generateText({
+        model: atoma(config.model),
+        prompt,
+        maxTokens,
+      });
+
+      const { signature, response_hash } = body as ResponseBody;
+
+      return {
+        result: text,
+        usage,
+        signature,
+        response_hash,
+      };
+    }
+  } catch (error) {
     return {
-      result: object,
-      usage,
-      signature,
-      response_hash,
-    };
-  } else {
-    const { text, usage, response: { body } } = await generateText({
-      model: atoma(config.model),
-      prompt,
-      maxTokens,
-    });
-
-    const { signature, response_hash } = body as ResponseBody;
-
-    return {
-      result: text,
-      usage,
-      signature,
-      response_hash,
+      result: "No output generated",
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: maxTokens,
+      },
+      signature: "",
+      response_hash: "",
     };
   }
 }
