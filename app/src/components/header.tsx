@@ -61,7 +61,7 @@ export default function Header() {
 
         <div className="flex items-center justify-end gap-4">
           {!isCreating && (
-            <Button variant="outline" onClick={() => router.push("/create")} className="hover:bg-[#6750A4] hover:text-white">
+            <Button variant="outline" onClick={() => router.push("/create")}>
               Create
             </Button>
           )}
@@ -91,7 +91,7 @@ export default function Header() {
               open={isModalOpen}
               onOpenChange={setIsModalOpen}
               trigger={
-                <Button variant="outline" className="hover:bg-[#6750A4] hover:text-white">
+                <Button variant="outline">
                   Connect Wallet
                 </Button>
               }

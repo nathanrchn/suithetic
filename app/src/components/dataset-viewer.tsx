@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { verifyEd25519Signature } from "@/lib/utils";
 import { BadgeAlert, BadgeCheck } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,6 +14,8 @@ export default function DatasetViewer({
   data: any[];
   maxLength?: number;
 }) {
+  const [selectedRow, setSelectedRow] = useState<number | null>(null);
+
   const innerFeatures = features.slice();
   if (data.length > 0 && data[0].signature) {
     innerFeatures.push("Verified");
@@ -26,8 +31,8 @@ export default function DatasetViewer({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((row) => (
-            <TableRow key={row.row_idx}>
+          {data.map((row, index) => (
+            <TableRow key={row.row_idx} onClick={() => setSelectedRow(index === selectedRow ? null : index)}>
               {innerFeatures.map((feature) => (
                 <TableCell
                 key={feature}
@@ -40,7 +45,7 @@ export default function DatasetViewer({
                     ) : (
                       <BadgeAlert className="text-red-500" />
                     )
-                  ) : row.row[feature].length > maxLength ? (
+                  ) : row.row[feature].length > maxLength && selectedRow != index ? (
                     `${row.row[feature].slice(0, maxLength)}...`
                   ) : (
                     row.row[feature]

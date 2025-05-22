@@ -73,7 +73,7 @@ export default function Home() {
                   </Button>
                 </div>
               </div>
-              <div className="flex items-center justify-center">
+              <div className="hidden md:flex items-center justify-center">
                 <div className="relative w-full max-w-[500px] h-[500px] flex items-center justify-center mx-auto">
                   <div className="absolute z-30 w-36 h-36 rounded-full bg-[#6750A4]/80 flex items-center justify-center border-2 border-[#6750A4] shadow-lg shadow-[#6750A4]/20">
                     <div className="text-white font-bold text-xl">LLM</div>
@@ -201,7 +201,7 @@ export default function Home() {
           <div className="container mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
-                <div className="inline-block rounded-lg bg-background px-3 py-1 text-sm">Technology</div>
+                <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Technology</div>
                 <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight">How Suithetic Works</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
                   Our innovative stack combines multiple blockchain technologies to create a seamless, secure data

@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Sparkles } from "lucide-react";
 import { fromHex, toHex } from "@mysten/sui/utils";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import { getModels, storeBlob } from "@/lib/actions";
 import DatasetInput from "@/components/dataset-input";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,7 +31,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 
-const generateSyntheticDataset = async (dataset: HFDataset, generationConfig: GenerationConfig) => {
+const generateSyntheticDataset = async (dataset: HFDataset, generationConfig: GenerationConfig, setProgress: (progress: number) => void) => {
   const output: SyntheticDataResultItem[] = [];
 
   let offset = 0;
@@ -49,8 +50,9 @@ const generateSyntheticDataset = async (dataset: HFDataset, generationConfig: Ge
       break;
     }
 
-    const { result, usage, signature, response_hash } = await generateRow(row, generationConfig, generationConfig.maxTokens - totalTokensUsed);
+    const { result, usage, signature, response_hash } = await generateRow(row.row[generationConfig.inputFeature], generationConfig, generationConfig.maxTokens - totalTokensUsed);
     totalTokensUsed += usage.totalTokens;
+    setProgress(totalTokensUsed / generationConfig.maxTokens);
 
     output.push({
       input: row,
@@ -87,6 +89,7 @@ const formSchema = z.object({
 
 export default function CreatePage() {
   const [data, setData] = useState<any[]>([]);
+  const [progress, setProgress] = useState<number>(0);
   const [numEpochs, setNumEpochs] = useState<number>(1);
   const [features, setFeatures] = useState<string[]>([]);
   const [models, setModels] = useState<AtomaModel[]>([]);
@@ -115,7 +118,7 @@ export default function CreatePage() {
   const currentAccount = useCurrentAccount();
   const sealClient = useMemo(() => new SealClient({
     suiClient,
-    serverObjectIds: getAllowlistedKeyServers("testnet"),
+    serverObjectIds: getAllowlistedKeyServers("testnet").map((id, index) => [id, index]),
     verifyKeyServers: false,
   }), [suiClient]);
 
@@ -220,7 +223,7 @@ export default function CreatePage() {
     }
   }, [dataset, previewAttempts, form, models, jsonSchema, data]);
 
-  const onSubmit = useCallback(async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!dataset || !currentAccount?.address) {
       toast.error("Generation Failed", { description: "Dataset or current account not available for generation." });
       return;
@@ -312,7 +315,7 @@ export default function CreatePage() {
   
           setSyntheticDatasetOutput([]); 
   
-          const outputs = await generateSyntheticDataset(dataset, generationConfig);
+          const outputs = await generateSyntheticDataset(dataset, generationConfig, setProgress);
           setSyntheticDatasetOutput(outputs);
         } catch (error: any) {
           const errorMessage = error.message || "An unknown error occurred on the server.";
@@ -327,7 +330,7 @@ export default function CreatePage() {
         console.error("Transaction failed:", error);
       }
     });
-  }, [dataset, currentAccount, models, suiClient, signAndExecuteTransaction, jsonSchema]);
+  };
 
   const sanitizeDataset = useCallback((datasetToSanitize: SyntheticDataResultItem[]): Uint8Array => {
     const { inputFeature } = form.getValues();
@@ -890,6 +893,12 @@ export default function CreatePage() {
                         "Generate Full Dataset"
                       )}
                     </Button>
+                    {isDatasetGenerationLoading && (
+                      <div className="mt-4">
+                        <Progress value={progress * 100} className="w-full" />
+                        <p className="text-sm text-center mt-2">Generation progress: {Math.round(progress * 100)}%</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
