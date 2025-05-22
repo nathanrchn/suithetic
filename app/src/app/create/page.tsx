@@ -2,34 +2,35 @@
 
 import * as z from "zod";
 import { toast } from "sonner";
+import { getModels } from "@/lib/actions";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { WalrusClient } from "@mysten/walrus";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Sparkles } from "lucide-react";
-import { fromHex, toHex } from "@mysten/sui/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { getModels, storeBlob } from "@/lib/actions";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import DatasetInput from "@/components/dataset-input";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import JsonSchemaInput from "@/components/json-schema-input";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
+import { coinWithBalance, Transaction } from "@mysten/sui/transactions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { fromHex, parseStructTag, MIST_PER_SUI, toHex } from "@mysten/sui/utils";
 import { generatePromptWithWizard, getRows, generateRow } from "@/app/create/actions";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT, MIST_PER_USDC, TESTNET_USDC_TYPE } from "@/lib/constants";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT, MIST_PER_USDC, TESTNET_USDC_TYPE, TESTNET_KEYPAIR, TESTNET_WALRUS_PACKAGE_CONFIG } from "@/lib/constants";
 
 const generateSyntheticDataset = async (dataset: HFDataset, generationConfig: GenerationConfig, setProgress: (progress: number) => void) => {
   const output: SyntheticDataResultItem[] = [];
@@ -67,7 +68,6 @@ const generateSyntheticDataset = async (dataset: HFDataset, generationConfig: Ge
 
   return output;
 }
-
 
 const formSchema = z.object({
   datasetName: z.string().min(3, "Dataset name must be at least 3 characters."),
@@ -124,6 +124,11 @@ export default function CreatePage() {
     verifyKeyServers: false,
   }), [suiClient]);
 
+  const walrusClient = new WalrusClient({
+    network: "testnet",
+    suiClient,
+  });
+
   const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction({
     execute: async ({ bytes, signature }) =>
       await suiClient.executeTransactionBlock({
@@ -151,6 +156,67 @@ export default function CreatePage() {
     },
     mode: "onChange",
   });
+
+  const getFundedKeypairSecretKey = async () => {
+    const keypair = TESTNET_KEYPAIR;
+  
+    const walBalance = await suiClient.getBalance({
+      owner: keypair.toSuiAddress(),
+      coinType: "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL",
+    });
+  
+    if (Number(walBalance.totalBalance) < Number(MIST_PER_SUI) / 2) {
+      const tx = new Transaction();
+  
+      const exchange = await suiClient.getObject({
+        id: TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0],
+        options: {
+          showType: true,
+        },
+      });
+  
+      const exchangePackageId = parseStructTag(exchange.data!.type!).address;
+  
+      const wal = tx.moveCall({
+        package: exchangePackageId,
+        module: "wal_exchange",
+        function: "exchange_all_for_wal",
+        arguments: [
+          tx.object(TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0]),
+          coinWithBalance({
+            balance: BigInt(MIST_PER_SUI) / BigInt(2),
+          }),
+        ],
+      });
+  
+      tx.transferObjects([wal], keypair.toSuiAddress());
+  
+      const { digest } = await suiClient.signAndExecuteTransaction({
+        transaction: tx,
+        signer: keypair,
+      });
+  
+      await suiClient.waitForTransaction({
+        digest,
+        options: {
+          showEffects: true,
+        },
+      });
+    }
+  
+    return keypair;
+  }
+  
+  const storeBlob = async (encryptedData: Uint8Array, numEpochs: number) => {
+    const { blobId } = await walrusClient.writeBlob({
+      blob: encryptedData,
+      deletable: false,
+      epochs: numEpochs,
+      signer: await getFundedKeypairSecretKey()
+    })
+  
+    return blobId;
+  }
 
   const previewFeatures = useMemo(() => {
     const inputFeature = form.getValues("inputFeature");

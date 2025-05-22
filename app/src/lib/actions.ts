@@ -6,7 +6,6 @@ import { getFullnodeUrl } from "@mysten/sui/client";
 import { HFDataset, DatasetObject } from "@/lib/types";
 import { MIST_PER_SUI, parseStructTag } from "@mysten/sui/utils";
 import { coinWithBalance, Transaction } from "@mysten/sui/transactions";
-import { getFaucetHost, requestSuiFromFaucetV2 } from "@mysten/sui/faucet";
 import { TESTNET_KEYPAIR, TESTNET_PACKAGE_ID, TESTNET_WALRUS_PACKAGE_CONFIG } from "@/lib/constants";
 
 const suiClient = new SuiClient({
@@ -53,78 +52,6 @@ export async function getModels() {
       max_num_compute_units: subscription.max_num_compute_units
     }
   });
-}
-
-async function getFundedKeypairSecretKey() {
-	const keypair = TESTNET_KEYPAIR;
-
-	// const balance = await suiClient.getBalance({
-	// 	owner: keypair.toSuiAddress(),
-	// });
-
-	// if (BigInt(balance.totalBalance) < MIST_PER_SUI) {
-	// 	await requestSuiFromFaucetV2({
-	// 		host: getFaucetHost("testnet"),
-	// 		recipient: keypair.toSuiAddress(),
-	// 	});
-	// }
-
-	const walBalance = await suiClient.getBalance({
-		owner: keypair.toSuiAddress(),
-		coinType: "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL",
-	});
-
-	if (Number(walBalance.totalBalance) < Number(MIST_PER_SUI) / 2) {
-		const tx = new Transaction();
-
-		const exchange = await suiClient.getObject({
-			id: TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0],
-			options: {
-				showType: true,
-			},
-		});
-
-		const exchangePackageId = parseStructTag(exchange.data!.type!).address;
-
-		const wal = tx.moveCall({
-			package: exchangePackageId,
-			module: "wal_exchange",
-			function: "exchange_all_for_wal",
-			arguments: [
-				tx.object(TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0]),
-				coinWithBalance({
-					balance: BigInt(MIST_PER_SUI) / BigInt(2),
-				}),
-			],
-		});
-
-		tx.transferObjects([wal], keypair.toSuiAddress());
-
-		const { digest } = await suiClient.signAndExecuteTransaction({
-			transaction: tx,
-			signer: keypair,
-		});
-
-		await suiClient.waitForTransaction({
-			digest,
-			options: {
-				showEffects: true,
-			},
-		});
-	}
-
-	return keypair;
-}
-
-export async function storeBlob(encryptedData: Uint8Array, numEpochs: number) {
-  const { blobId } = await walrusClient.writeBlob({
-    blob: encryptedData,
-    deletable: false,
-    epochs: numEpochs,
-    signer: await getFundedKeypairSecretKey()
-  })
-
-  return blobId;
 }
 
 export async function getBlob(blobId: string) {
