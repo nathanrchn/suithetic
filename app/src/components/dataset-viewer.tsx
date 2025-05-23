@@ -53,7 +53,7 @@ export default function DatasetViewer({
                       }
                       return jsonString;
                     })()
-                  ) : row.row[feature].length > maxLength && selectedRow != index ? (
+                  ) : typeof row.row[feature] === 'string' && row.row[feature].length > maxLength && selectedRow != index ? (
                     `${row.row[feature].slice(0, maxLength)}...`
                   ) : (
                     row.row[feature]
