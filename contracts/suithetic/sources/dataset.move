@@ -59,8 +59,15 @@ module suithetic::dataset {
         num_downloads: u64,
     }
 
+    /// Represents the ownership of a dataset.
+    public struct DatasetOwnership has key, store {
+        id: UID,
+        /// The ID of the owned dataset.
+        dataset_id: ID,
+    }
+
     /// Represents a dataset.
-    public struct Dataset has key, store {
+    public struct Dataset has key {
         id: UID,
         /// The version of the dataset. If the version is 0, the dataset is not locked.
         /// If the version is greater than 0, the dataset is locked and is ready to be downloaded.
@@ -120,7 +127,7 @@ module suithetic::dataset {
         model_price_per_one_million_compute_units: u64,
         model_max_num_compute_units: u64,
         ctx: &mut TxContext
-    ): Dataset {
+    ): DatasetOwnership {
         let dataset = Dataset {
             id: object::new(ctx),
             version: 0,
@@ -154,7 +161,14 @@ module suithetic::dataset {
             },
         };
 
-        dataset
+        let ownership = DatasetOwnership {
+            id: object::new(ctx),
+            dataset_id: object::id(&dataset),
+        };
+
+        transfer::share_object(dataset);
+
+        ownership
     }
 
     /// Method to lock the dataset with the blob id and the number of rows and tokens.
@@ -188,18 +202,28 @@ module suithetic::dataset {
         self.allowlist.push_back(ctx.sender());
     }
 
+    /// Method to change the name of the dataset.
     public fun change_name(self: &mut Dataset, name: String, ctx: &mut TxContext) {
         assert!(self.owner == ctx.sender(), ENoAccess);
 
         self.name = name;
     }
 
+    /// Method to change the description of the dataset.
+    public fun change_description(self: &mut Dataset, description: String, ctx: &mut TxContext) {
+        assert!(self.owner == ctx.sender(), ENoAccess);
+
+        self.description = option::some(description);
+    }
+
+    /// Method to change the price of the dataset.
     public fun change_price(self: &mut Dataset, price: u64, ctx: &mut TxContext) {
         assert!(self.owner == ctx.sender(), ENoAccess);
 
         self.price = price;
     }
 
+    /// Method to withdraw the balance of the dataset.
     public fun withdraw_balance(self: &mut Dataset, ctx: &mut TxContext): Coin<USDC> {
         assert!(self.owner == ctx.sender(), ENoAccess);
 

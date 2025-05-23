@@ -3,10 +3,8 @@
 import { WalrusClient } from "@mysten/walrus";
 import { SuiClient } from "@mysten/sui/client";
 import { getFullnodeUrl } from "@mysten/sui/client";
+import { TESTNET_PACKAGE_ID } from "@/lib/constants";
 import { HFDataset, DatasetObject } from "@/lib/types";
-import { MIST_PER_SUI, parseStructTag } from "@mysten/sui/utils";
-import { coinWithBalance, Transaction } from "@mysten/sui/transactions";
-import { TESTNET_KEYPAIR, TESTNET_PACKAGE_ID, TESTNET_WALRUS_PACKAGE_CONFIG } from "@/lib/constants";
 
 const suiClient = new SuiClient({
   url: getFullnodeUrl("testnet"),
@@ -135,15 +133,15 @@ export async function getPersonalDatasets(address: string): Promise<DatasetObjec
   const res = await suiClient.getOwnedObjects({
     owner: address,
     filter: {
-      MoveModule: {
-        module: "dataset",
-        package: TESTNET_PACKAGE_ID
-      }
+      StructType: `${TESTNET_PACKAGE_ID}::dataset::DatasetOwnership`
+    },
+    options: {
+      showContent: true,
     }
   });
 
   const objects = await suiClient.multiGetObjects({
-    ids: res.data.map((obj) => obj.data!.objectId),
+    ids: res.data.map((obj) => (obj.data!.content! as any).fields.dataset_id),
     options: {
       showContent: true,
     }

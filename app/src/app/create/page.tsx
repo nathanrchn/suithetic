@@ -355,8 +355,9 @@ export default function CreatePage() {
 
     signAndExecuteTransaction({ transaction: tx }, {
       onSuccess: async (result: any) => {
-        if (result.effects?.created?.[0]?.reference?.objectId) {
-          setDatasetObjectId(result.effects.created[0].reference.objectId);
+        const sharedObjects = result.effects?.created?.filter((obj: any) => obj.owner.Shared);
+        if (sharedObjects.length > 0) {
+          setDatasetObjectId(sharedObjects[0].reference.objectId);
         } else {
           toast.error("Transaction Error", { description: "Failed to get dataset object ID from transaction result." });
           console.error("Failed to get dataset object ID from transaction result:", result);

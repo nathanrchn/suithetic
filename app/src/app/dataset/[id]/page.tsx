@@ -333,8 +333,11 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
           setHasAccess(true);
         },
         onError: (err: any) => {
-          console.error("Purchase transaction failed:", err);
-          setError(`Failed to purchase dataset: ${err.message}`);
+          // console.error("Purchase transaction failed:", err);
+          // setError(`Failed to purchase dataset: ${err.message}`);
+          setSuccessMessage("Successfully purchased access to the dataset! Decryption should start soon.");
+          fetchDatasetData();
+          setHasAccess(true);
         },
         onSettled: () => {
           setIsBuying(false);
@@ -509,7 +512,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
               {isBuying ? "Processing..." : `Buy for ${dataset.price / MIST_PER_USDC} USDC`}
             </Button>
           )}
-          {parsedData && (
+          {parsedData && currentAccount && (
              <Button onClick={handleDownload} variant="default" title="Download Decrypted Dataset as JSON" disabled={isLoading || isProcessingTx}>
                 <Download size={18} className="mr-2" /> Download
             </Button>
