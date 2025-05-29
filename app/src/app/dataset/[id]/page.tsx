@@ -57,7 +57,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
       return null;
     }
     return new SealClient({
-      suiClient,
+      suiClient: suiClient as any,
       serverObjectIds: getAllowlistedKeyServers("testnet").map((id, index) => [id, index]),
       verifyKeyServers: false,
     });

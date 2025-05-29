@@ -119,7 +119,7 @@ export default function CreatePage() {
   const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();
   const sealClient = useMemo(() => new SealClient({
-    suiClient,
+    suiClient: suiClient as any,
     serverObjectIds: getAllowlistedKeyServers("testnet").map((id, index) => [id, index]),
     verifyKeyServers: false,
   }), [suiClient]);
@@ -128,6 +128,10 @@ export default function CreatePage() {
     network: "testnet",
     suiClient,
   });
+
+  useEffect(() => {
+    console.log("isUploadDialogOpen", syntheticDatasetOutput.length > 0 && !isDatasetGenerationLoading && !isUploadDialogOpen);
+  }, [syntheticDatasetOutput, isDatasetGenerationLoading, isUploadDialogOpen]);
 
   const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction({
     execute: async ({ bytes, signature }) =>
@@ -577,7 +581,7 @@ export default function CreatePage() {
       setUploadCompleted(false);
       setIsUploadDialogOpen(true);
     }
-  }, [syntheticDatasetOutput, isDatasetGenerationLoading, isUploadDialogOpen]);
+  }, [syntheticDatasetOutput, isDatasetGenerationLoading]);
 
   const datasetViewMemo = useMemo(() => {
     return <DatasetViewer features={features} data={data} />
@@ -942,27 +946,41 @@ export default function CreatePage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <Button 
-                      type="submit"
-                      className="w-full bg-[#6750A4] hover:bg-[#6750A4]/90"
-                      size="lg"
-                      variant="default"
-                      disabled={
-                        isDatasetGenerationLoading || 
-                        !form.formState.isValid ||
-                        !dataset ||
-                        !currentAccount
-                      }
-                    >
-                      {isDatasetGenerationLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Generating Full Dataset...
-                        </>
-                      ) : (
-                        "Generate Full Dataset"
-                      )}
-                    </Button>
+                    {syntheticDatasetOutput.length > 0 && !isDatasetGenerationLoading && !isUploadDialogOpen ? (
+                      <Button
+                        type="button"
+                        onClick={(e) => { 
+                          e.preventDefault(); 
+                          setIsUploadDialogOpen(true); 
+                        }}
+                        className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
+                        size="lg"
+                      >
+                        Reopen Upload & Lock Dialog
+                      </Button>
+                    ) : (
+                      <Button
+                        type="submit"
+                        className="w-full bg-[#6750A4] hover:bg-[#6750A4]/90"
+                        size="lg"
+                        variant="default"
+                        disabled={
+                          isDatasetGenerationLoading || 
+                          !form.formState.isValid ||
+                          !dataset ||
+                          !currentAccount
+                        }
+                      >
+                        {isDatasetGenerationLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Generating Full Dataset...
+                          </>
+                        ) : (
+                          "Generate Full Dataset"
+                        )}
+                      </Button>
+                    )}
                     {isDatasetGenerationLoading && (
                       <div className="mt-4">
                         <Progress value={progress * 100} className="w-full" />
@@ -972,13 +990,7 @@ export default function CreatePage() {
                   </CardContent>
                 </Card>
 
-                <Dialog open={isUploadDialogOpen} onOpenChange={(isOpen) => {
-                  if (!isOpen) {
-                    handleCancelDialog();
-                  } else {
-                    setIsUploadDialogOpen(true);
-                  }
-                }}>
+                <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
                   <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                       <DialogTitle>{uploadCompleted ? "Lock Dataset" : "Upload Synthetic Dataset"}</DialogTitle>

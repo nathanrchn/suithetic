@@ -3,8 +3,8 @@
 import { WalrusClient } from "@mysten/walrus";
 import { SuiClient } from "@mysten/sui/client";
 import { getFullnodeUrl } from "@mysten/sui/client";
-import { TESTNET_PACKAGE_ID } from "@/lib/constants";
 import { HFDataset, DatasetObject } from "@/lib/types";
+import { TESTNET_PACKAGE_ID, TESTNET_DEBUG_OBJECTS } from "@/lib/constants";
 
 const suiClient = new SuiClient({
   url: getFullnodeUrl("testnet"),
@@ -117,8 +117,13 @@ export async function getLockedDatasets(): Promise<DatasetObject[]> {
     }
   });
 
+  const filteredEvents = data.filter((event) => {
+    const content = event.parsedJson as any;
+    return !TESTNET_DEBUG_OBJECTS.includes(content.dataset);
+  });
+
   const objects = await suiClient.multiGetObjects({
-    ids: data.map((event) => (event.parsedJson as any).dataset),
+    ids: filteredEvents.map((event) => (event.parsedJson as any).dataset),
     options: {
       showContent: true,
     }
@@ -140,8 +145,13 @@ export async function getPersonalDatasets(address: string): Promise<DatasetObjec
     }
   });
 
+  const filteredObjects = res.data.filter((obj) => {
+    const content = obj.data!.content! as any;
+    return !TESTNET_DEBUG_OBJECTS.includes(content.fields.dataset_id);
+  });
+
   const objects = await suiClient.multiGetObjects({
-    ids: res.data.map((obj) => (obj.data!.content! as any).fields.dataset_id),
+    ids: filteredObjects.map((obj) => (obj.data!.content! as any).fields.dataset_id),
     options: {
       showContent: true,
     }
