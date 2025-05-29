@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "@mysten/dapp-kit/dist/index.css";
+import { Analytics } from "@vercel/analytics/next";
 
 import "@/app/globals.css";
 import Context from "./context";
@@ -32,6 +33,7 @@ export default function RootLayout({
             {children}
           </main>
           <Toaster />
+          <Analytics />
         </Context>
       </body>
     </html>
