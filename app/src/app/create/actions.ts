@@ -1,9 +1,11 @@
 "use server";
 
 import { z } from "zod";
+import { Buffer } from "buffer";
 import { google } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject, generateText } from "ai";
+import { TESTNET_PUBLISHERS } from "@/lib/constants";
 import { GenerationConfig, HFDataset } from "@/lib/types";
 import { JSONSchemaToZod } from "@dmitryrechkin/json-schema-to-zod";
 
@@ -102,4 +104,23 @@ Generated Prompt for Data Synthesis:`;
   })
 
   return promptObject.prompt;
+}
+
+export const storeBlob = async (encryptedData: Uint8Array, numEpochs: number) => {
+  while (true) {
+    try {
+      const url = TESTNET_PUBLISHERS[Math.floor(Math.random() * TESTNET_PUBLISHERS.length)];
+      const response = await fetch(`${url}/v1/blobs?epochs=${numEpochs}`, {
+        method: "PUT",
+        body: Buffer.from(encryptedData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.newlyCreated.blobObject.blobId;
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
 }

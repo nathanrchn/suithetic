@@ -4,7 +4,7 @@ import { WalrusClient } from "@mysten/walrus";
 import { SuiClient } from "@mysten/sui/client";
 import { getFullnodeUrl } from "@mysten/sui/client";
 import { HFDataset, DatasetObject } from "@/lib/types";
-import { TESTNET_PACKAGE_ID, TESTNET_DEBUG_OBJECTS } from "@/lib/constants";
+import { TESTNET_PACKAGE_ID, TESTNET_DEBUG_OBJECTS, TESTNET_AGGREGATORS } from "@/lib/constants";
 
 const suiClient = new SuiClient({
   url: getFullnodeUrl("testnet"),
@@ -53,7 +53,18 @@ export async function getModels() {
 }
 
 export async function getBlob(blobId: string) {
-  return await walrusClient.readBlob({ blobId });
+  while (true) {
+    try {
+      const url = TESTNET_AGGREGATORS[Math.floor(Math.random() * TESTNET_AGGREGATORS.length)];
+      const response = await fetch(`${url}/v1/blobs/${blobId}`);
+      if (response.ok) {
+        const data = await response.arrayBuffer();
+        return new Uint8Array(data);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
 }
 
 const _mapRawObjectToDatasetObject = (rawObject: any): DatasetObject => {

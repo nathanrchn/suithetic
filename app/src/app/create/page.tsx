@@ -23,8 +23,8 @@ import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 import { coinWithBalance, Transaction } from "@mysten/sui/transactions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fromHex, parseStructTag, MIST_PER_SUI, toHex } from "@mysten/sui/utils";
-import { generatePromptWithWizard, getRows, generateRow } from "@/app/create/actions";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
+import { generatePromptWithWizard, getRows, generateRow, storeBlob } from "@/app/create/actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -161,66 +161,66 @@ export default function CreatePage() {
     mode: "onChange",
   });
 
-  const getFundedKeypairSecretKey = async () => {
-    const keypair = TESTNET_KEYPAIR;
+  // const getFundedKeypairSecretKey = async () => {
+  //   const keypair = TESTNET_KEYPAIR;
   
-    const walBalance = await suiClient.getBalance({
-      owner: keypair.toSuiAddress(),
-      coinType: "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL",
-    });
+  //   const walBalance = await suiClient.getBalance({
+  //     owner: keypair.toSuiAddress(),
+  //     coinType: "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL",
+  //   });
   
-    if (Number(walBalance.totalBalance) < Number(MIST_PER_SUI) / 2) {
-      const tx = new Transaction();
+  //   if (Number(walBalance.totalBalance) < Number(MIST_PER_SUI) / 2) {
+  //     const tx = new Transaction();
   
-      const exchange = await suiClient.getObject({
-        id: TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0],
-        options: {
-          showType: true,
-        },
-      });
+  //     const exchange = await suiClient.getObject({
+  //       id: TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0],
+  //       options: {
+  //         showType: true,
+  //       },
+  //     });
   
-      const exchangePackageId = parseStructTag(exchange.data!.type!).address;
+  //     const exchangePackageId = parseStructTag(exchange.data!.type!).address;
   
-      const wal = tx.moveCall({
-        package: exchangePackageId,
-        module: "wal_exchange",
-        function: "exchange_all_for_wal",
-        arguments: [
-          tx.object(TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0]),
-          coinWithBalance({
-            balance: BigInt(MIST_PER_SUI) / BigInt(2),
-          }),
-        ],
-      });
+  //     const wal = tx.moveCall({
+  //       package: exchangePackageId,
+  //       module: "wal_exchange",
+  //       function: "exchange_all_for_wal",
+  //       arguments: [
+  //         tx.object(TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0]),
+  //         coinWithBalance({
+  //           balance: BigInt(MIST_PER_SUI) / BigInt(2),
+  //         }),
+  //       ],
+  //     });
   
-      tx.transferObjects([wal], keypair.toSuiAddress());
+  //     tx.transferObjects([wal], keypair.toSuiAddress());
   
-      const { digest } = await suiClient.signAndExecuteTransaction({
-        transaction: tx,
-        signer: keypair,
-      });
+  //     const { digest } = await suiClient.signAndExecuteTransaction({
+  //       transaction: tx,
+  //       signer: keypair,
+  //     });
   
-      await suiClient.waitForTransaction({
-        digest,
-        options: {
-          showEffects: true,
-        },
-      });
-    }
+  //     await suiClient.waitForTransaction({
+  //       digest,
+  //       options: {
+  //         showEffects: true,
+  //       },
+  //     });
+  //   }
   
-    return keypair;
-  }
+  //   return keypair;
+  // }
   
-  const storeBlob = async (encryptedData: Uint8Array, numEpochs: number) => {
-    const { blobId } = await walrusClient.writeBlob({
-      blob: encryptedData,
-      deletable: false,
-      epochs: numEpochs,
-      signer: await getFundedKeypairSecretKey()
-    })
+  // const storeBlob = async (encryptedData: Uint8Array, numEpochs: number) => {
+  //   const { blobId } = await walrusClient.writeBlob({
+  //     blob: encryptedData,
+  //     deletable: false,
+  //     epochs: numEpochs,
+  //     signer: await getFundedKeypairSecretKey()
+  //   })
   
-    return blobId;
-  }
+  //   return blobId;
+  // }
 
   const previewFeatures = useMemo(() => {
     const inputFeature = form.getValues("inputFeature");
