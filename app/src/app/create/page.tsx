@@ -4,10 +4,8 @@ import * as z from "zod";
 import { toast } from "sonner";
 import { getModels } from "@/lib/actions";
 import { useForm } from "react-hook-form";
-import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { WalrusClient } from "@mysten/walrus";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Sparkles } from "lucide-react";
@@ -20,6 +18,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import JsonSchemaInput from "@/components/json-schema-input";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -116,6 +115,7 @@ export default function CreatePage() {
   const MAX_PREVIEW_ATTEMPTS = 5;
 
   const router = useRouter();
+  const searchParams = useSearchParams();
   const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();
   const sealClient = useMemo(() => new SealClient({
@@ -123,15 +123,6 @@ export default function CreatePage() {
     serverObjectIds: getAllowlistedKeyServers("testnet").map((id, index) => [id, index]),
     verifyKeyServers: false,
   }), [suiClient]);
-
-  const walrusClient = new WalrusClient({
-    network: "testnet",
-    suiClient,
-  });
-
-  useEffect(() => {
-    console.log("isUploadDialogOpen", syntheticDatasetOutput.length > 0 && !isDatasetGenerationLoading && !isUploadDialogOpen);
-  }, [syntheticDatasetOutput, isDatasetGenerationLoading, isUploadDialogOpen]);
 
   const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction({
     execute: async ({ bytes, signature }) =>
@@ -175,6 +166,76 @@ export default function CreatePage() {
       form.setValue("maxTokens", selectedModel.max_num_compute_units, { shouldValidate: true });
     }
   }, [selectedModel, form]);
+
+  useEffect(() => {
+    const prefillForm = async () => {
+      const datasetPath = searchParams.get("datasetPath");
+      const datasetConfig = searchParams.get("datasetConfig");
+      const datasetSplit = searchParams.get("datasetSplit");
+
+      if (datasetPath && datasetConfig && datasetSplit) {
+        try {
+          const response = await fetch(`https://datasets-server.huggingface.co/first-rows?dataset=${datasetPath}&config=${datasetConfig}&split=${datasetSplit}`);
+          if (response.ok) {
+            const data = await response.json();
+            const features = data.features.map((feature: any) => feature.name);
+            setDataset({
+              path: datasetPath,
+              config: datasetConfig,
+              split: datasetSplit,
+              features: features,
+            });
+          } else {
+            toast.error("Failed to load dataset from URL", { description: `Could not fetch details for ${datasetPath}.` });
+            console.error("Failed to fetch dataset info for pre-filling", await response.text());
+          }
+        } catch (error) {
+          toast.error("Failed to load dataset from URL", { description: "An error occurred while fetching dataset details."});
+          console.error("Error fetching dataset info for pre-filling:", error);
+        }
+      }
+
+      const datasetName = searchParams.get("datasetName");
+      if (datasetName) form.setValue("datasetName", datasetName, { shouldValidate: true });
+
+      const modelId = searchParams.get("modelId");
+      if (modelId) form.setValue("modelId", modelId, { shouldValidate: true });
+
+      const maxTokens = searchParams.get("maxTokens");
+      if (maxTokens) form.setValue("maxTokens", Number(maxTokens), { shouldValidate: true });
+
+      const inputFeature = searchParams.get("inputFeature");
+      if (inputFeature) form.setValue("inputFeature", inputFeature, { shouldValidate: true });
+
+      const isStructured = searchParams.get("isStructured");
+      if (isStructured) form.setValue("isStructured", isStructured === 'true', { shouldValidate: true });
+
+      const prompt = searchParams.get("prompt");
+      if (prompt) {
+        form.setValue("prompt", prompt, { shouldValidate: true });
+        setIsWizardOpen(false);
+      }
+
+      const visibility = searchParams.get("visibility");
+      if (visibility) form.setValue("visibility", Number(visibility), { shouldValidate: true });
+
+      const description = searchParams.get("description");
+      if (description) form.setValue("description", description, { shouldValidate: true });
+
+      const price = searchParams.get("price");
+      if (price) form.setValue("price", Number(price), { shouldValidate: true });
+
+      const wizardPromptValue = searchParams.get("wizardPrompt");
+      if (wizardPromptValue) {
+        setWizardPrompt(wizardPromptValue);
+        setIsWizardOpen(true);
+      }
+    };
+
+    if (searchParams.toString()) {
+      prefillForm();
+    }
+  }, [searchParams, form, setDataset, setWizardPrompt, setIsWizardOpen]);
 
   const handleTestGeneration = useCallback(async () => {
     if (!dataset) return;
@@ -525,6 +586,10 @@ export default function CreatePage() {
   const datasetViewMemo = useMemo(() => {
     return <DatasetViewer features={features} data={data} />
   }, [features, data]);
+
+  // useEffect(() => {
+  //   console.log("form", form.formState.isValid);
+  // }, [form]);
 
   return (
     <Form {...form}>
