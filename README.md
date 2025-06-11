@@ -1,3 +1,5 @@
+<img src="flow.svg" alt="Suithetic Logo" width="200" height="200">
+
 # Suithetic
 
 > Generate synthetic data with verifiable LLMs on Sui
