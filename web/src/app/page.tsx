@@ -29,6 +29,9 @@ export default function Home() {
             <Link href="#how-it-works" className="text-sm font-medium transition-colors hover:text-primary">
               How It Works
             </Link>
+            <Link href="#docs" className="text-sm font-medium transition-colors hover:text-primary">
+              Docs
+            </Link>
             <Link href="#use-cases" className="text-sm font-medium transition-colors hover:text-primary">
               Use Cases
             </Link>
@@ -260,7 +263,70 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="use-cases" className="w-full py-12 md:py-24 lg:py-32 bg-muted">
+        <section id="docs" className="w-full py-12 md:py-24 lg:py-32 bg-muted">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                <div className="inline-block rounded-lg bg-background px-3 py-1 text-sm">Docs</div>
+                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight">Using Suithetic Datasets</h2>
+                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                  Datasets from Suithetic are designed for easy integration. They are compatible with the Hugging Face{" "}
+                  <Image
+                    src="/datasets-logo.svg"
+                    alt="Datasets logo"
+                    width={100}
+                    height={100}
+                    className="inline-block dark:invert"
+                  />
+                  {" "}library, so you can load them with just a few lines of code.
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto mt-12 max-w-3xl">
+              <div className="rounded-lg border bg-background shadow-lg">
+                <div className="flex items-center justify-between border-b px-4 py-2">
+                  <span className="text-sm font-medium">Python Example</span>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link
+                      href="https://app.suithetic.com/dataset/0xed818da7e91f5bbc03e246a2dc8a2da47faded8709122cb7b45d2dc920ef564e"
+                      target="_blank"
+                    >
+                      View Dataset <ExternalLink className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+                <div className="p-4">
+                  <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4">
+                    <code className="font-mono text-sm text-white">
+                      <span className="text-gray-500">&gt;&gt;&gt; </span>
+                      <span className="text-pink-400">from</span> datasets{" "}
+                      <span className="text-pink-400">import</span> load_dataset
+                      <br />
+                      <span className="text-gray-500">&gt;&gt;&gt; </span>
+                      dataset = load_dataset("json", data_files="INTELLECT-2_Llama-3-70B_COT.json")
+                      <br />
+                      <span className="text-gray-500">&gt;&gt;&gt; </span>
+                      dataset
+                      <br />
+                      DatasetDict({'{'}
+                      <br />
+                      &nbsp;&nbsp;&nbsp;&nbsp;train: Dataset({'{'}
+                      <br />
+                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;features: ['prompt', 'generated_output'],
+                      <br />
+                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;num_rows: 7
+                      <br />
+                      &nbsp;&nbsp;&nbsp;&nbsp;{'}'})<br />
+                      {'}'})<br />
+                    </code>
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="use-cases" className="w-full py-12 md:py-24 lg:py-32 bg-background">
           <div className="container mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
