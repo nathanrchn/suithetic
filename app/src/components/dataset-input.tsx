@@ -70,13 +70,26 @@ const DatasetInputComponent = ({
     }
   }
 
+  const isTextOrMessages = (feature: any) => {
+    if (feature?.dtype === "string") {
+      return true;
+    }
+
+    // For now, we only support string features
+    // if (Array.isArray(feature) && feature.length === 1) {
+    //   const dtype = feature[0];
+    //   return dtype.content.dtype === "string" && dtype.role.dtype === "string";
+    // }
+
+    return false;
+  }
+
   const getFeaturesAndSetDataset = async (path: string, config: string, split: string) => {
     const response = await fetch(`https://datasets-server.huggingface.co/info?dataset=${path}&config=${config}`)
     const data = await response.json();
 
-    // For now, we only support string features
     setDataset({ path, config, split, features: Object.keys(data.dataset_info.features || {}).filter((feature: string) => {
-      return data.dataset_info.features[feature]?.dtype === "string"
+      return isTextOrMessages(data.dataset_info.features[feature])
     }) });
   }
 
