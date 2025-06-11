@@ -19,7 +19,7 @@ import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import JsonSchemaInput from "@/components/json-schema-input";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
@@ -88,7 +88,7 @@ const formSchema = z.object({
   path: ["price"],
 });
 
-export default function CreatePage() {
+function CreateInnerPage() {
   const [data, setData] = useState<any[]>([]);
   const [progress, setProgress] = useState<number>(0);
   const [numEpochs, setNumEpochs] = useState<number>(1);
@@ -115,8 +115,8 @@ export default function CreatePage() {
   const MAX_PREVIEW_ATTEMPTS = 5;
 
   const router = useRouter();
-  const searchParams = useSearchParams();
   const suiClient = useSuiClient();
+  const searchParams = useSearchParams();
   const currentAccount = useCurrentAccount();
   const sealClient = useMemo(() => new SealClient({
     suiClient: suiClient as any,
@@ -1074,4 +1074,12 @@ export default function CreatePage() {
       </form>
     </Form>
   );
+}
+
+export default function CreatePage() {
+  return (
+    <Suspense>
+      <CreateInnerPage />
+    </Suspense>
+  )
 }
