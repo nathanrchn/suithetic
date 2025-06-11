@@ -10,57 +10,57 @@ import { DatasetList } from "@/components/dataset-list";
 import { TemplateList } from "@/components/template-list";
 
 const templates: Template[] = [
-  {
-    name: "UltraChat",
-    description: "A dataset for ultra-chat",
-    dataset: {
-      path: "HuggingFaceH4/ultrachat_200k",
-      config: "default",
-      split: "train_sft",
-    },
-    prompt: "{input}",
-    inputFeature: "prompt",
-    isStructured: false,
-    maxTokens: 100,
-    modelId: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
-    price: 1,
-    visibility: 0,
-    color: "purple",
-  },
-  {
-    name: "UltraChat",
-    description: "A dataset for ultra-chat",
-    dataset: {
-      path: "HuggingFaceH4/ultrachat_200k",
-      config: "default",
-      split: "train_sft",
-    },
-    prompt: "{input}",
-    inputFeature: "prompt",
-    isStructured: false,
-    maxTokens: 100,
-    modelId: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
-    price: 1,
-    visibility: 0,
-    color: "blue",
-  },
-  {
-    name: "UltraChat",
-    description: "A dataset for ultra-chat",
-    dataset: {
-      path: "HuggingFaceH4/ultrachat_200k",
-      config: "default",
-      split: "train_sft",
-    },
-    prompt: "{input}",
-    inputFeature: "prompt",
-    isStructured: false,
-    maxTokens: 100,
-    modelId: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
-    price: 1,
-    visibility: 0,
-    color: "green",
-  },
+  // {
+  //   name: "UltraChat",
+  //   description: "A dataset for ultra-chat",
+  //   dataset: {
+  //     path: "HuggingFaceH4/ultrachat_200k",
+  //     config: "default",
+  //     split: "train_sft",
+  //   },
+  //   prompt: "{input}",
+  //   inputFeature: "prompt",
+  //   isStructured: false,
+  //   maxTokens: 100,
+  //   modelId: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
+  //   price: 1,
+  //   visibility: 0,
+  //   color: "purple",
+  // },
+  // {
+  //   name: "UltraChat",
+  //   description: "A dataset for ultra-chat",
+  //   dataset: {
+  //     path: "HuggingFaceH4/ultrachat_200k",
+  //     config: "default",
+  //     split: "train_sft",
+  //   },
+  //   prompt: "{input}",
+  //   inputFeature: "prompt",
+  //   isStructured: false,
+  //   maxTokens: 100,
+  //   modelId: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
+  //   price: 1,
+  //   visibility: 0,
+  //   color: "blue",
+  // },
+  // {
+  //   name: "UltraChat",
+  //   description: "A dataset for ultra-chat",
+  //   dataset: {
+  //     path: "HuggingFaceH4/ultrachat_200k",
+  //     config: "default",
+  //     split: "train_sft",
+  //   },
+  //   prompt: "{input}",
+  //   inputFeature: "prompt",
+  //   isStructured: false,
+  //   maxTokens: 100,
+  //   modelId: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
+  //   price: 1,
+  //   visibility: 0,
+  //   color: "green",
+  // },
 ];
 
 export default function Home() {
@@ -76,7 +76,7 @@ export default function Home() {
 
   return (
     <div className="container mx-auto p-3">
-      {showTemplates && (
+      {showTemplates && templates.length > 0 && (
         <div className="flex justify-center my-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-4 max-w-xl w-full">
             <div className="flex justify-between items-center mb-3">
