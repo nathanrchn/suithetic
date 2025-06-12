@@ -495,9 +495,20 @@ export default function Home() {
             />
             <span className="text-lg font-bold">Suithetic</span>
           </div>
-          <p className="text-center text-sm text-muted-foreground md:text-left">
-            &copy; {new Date().getFullYear()} Suithetic. All rights reserved.
-          </p>
+          <div className="text-center text-sm text-muted-foreground md:text-left">
+            <span>&copy; {new Date().getFullYear()} Suithetic. All rights reserved.</span>
+            <span className="ml-2">
+              Made by{" "}
+              <Link
+                href="https://nathanrchn.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-foreground"
+              >
+                Nathan Ranchin
+              </Link>
+            </span>
+          </div>
           <div className="flex gap-4">
             <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
               Privacy Policy
