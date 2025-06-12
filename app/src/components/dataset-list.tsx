@@ -1,11 +1,12 @@
-import Link from "next/link"
-import Avatar from "@/components/avatar"
-import { Badge } from "@/components/ui/badge"
-import { MIST_PER_USDC } from "@/lib/constants"
-import type { DatasetObject } from "@/lib/types"
-import { Download, Eye, FileText } from "lucide-react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import Name from "@/components/name";
+import Avatar from "@/components/avatar";
+import { Badge } from "@/components/ui/badge";
+import { MIST_PER_USDC } from "@/lib/constants";
+import type { DatasetObject } from "@/lib/types";
+import { Download, Eye, FileText } from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 const stringToHash = (str: string) => {
   let hash = 0
@@ -31,9 +32,7 @@ const getGradientClasses = (name: string): [string, string] => {
   return [startColor, endColor];
 }
 
-export function DatasetList({ datasets, currentAddress }: { datasets: DatasetObject[], currentAddress?: string }) {
-  const shortAddress = (address: string) => address.slice(0, 6) + "..." + address.slice(-4);
-
+export function DatasetList({ datasets, currentAddress, resolveNameServiceNames }: { datasets: DatasetObject[], currentAddress?: string, resolveNameServiceNames: (address: string) => Promise<string> }) {
   const getShortModelName = (modelName: string) => {
     return modelName.split("/").pop();
   }
@@ -65,7 +64,7 @@ export function DatasetList({ datasets, currentAddress }: { datasets: DatasetObj
                       <CardDescription className="text-sm">
                         <div className="flex items-center space-x-2">
                           <Avatar address={dataset.owner} />
-                          {shortAddress(dataset.owner)}
+                          <Name address={dataset.owner} resolveNameServiceNames={resolveNameServiceNames} />
                         </div>
                       </CardDescription>
                     </div>

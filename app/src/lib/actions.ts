@@ -1,6 +1,5 @@
 "use server";
 
-import { WalrusClient } from "@mysten/walrus";
 import { SuiClient } from "@mysten/sui/client";
 import { getFullnodeUrl } from "@mysten/sui/client";
 import { HFDataset, DatasetObject } from "@/lib/types";
@@ -8,11 +7,6 @@ import { TESTNET_PACKAGE_ID, TESTNET_DEBUG_OBJECTS, TESTNET_AGGREGATORS } from "
 
 const suiClient = new SuiClient({
   url: getFullnodeUrl("testnet"),
-});
-
-const walrusClient = new WalrusClient({
-  network: "testnet",
-  suiClient,
 });
 
 export async function getRows(dataset: HFDataset, offset: number, length: number) {

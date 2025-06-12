@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { toast } from "sonner";
+import Name from "@/components/name";
 import { notFound } from "next/navigation";
 import { DatasetObject } from "@/lib/types";
 import { fromHex } from "@mysten/sui/utils";
@@ -15,7 +16,7 @@ import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import { EncryptedObject, SealClient } from "@mysten/seal";
 import { getAllowlistedKeyServers, SessionKey } from "@mysten/seal";
-import { use, useState, useEffect, useCallback, useMemo } from "react";
+import { use, useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { MIST_PER_USDC, TESTNET_PACKAGE_ID, TESTNET_USDC_TYPE } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,7 +40,6 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
   const [editableVisibility, setEditableVisibility] = useState<number>(0);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [decryptedBytes, setDecryptedBytes] = useState<Uint8Array | null>(null);
-  const shortAddress = (address: string) => address.slice(0, 6) + "..." + address.slice(-4);
 
   const isSuiAddress = (address: string) => {
     return address.startsWith("0x") && address.length === 66
@@ -362,6 +362,14 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
     URL.revokeObjectURL(url);
   };
   
+  const resolveNameServiceNames = useCallback(async (address: string) => {
+    const response = await suiClient.resolveNameServiceNames({
+      address,
+      format: "at",
+    });
+    return response.data[0];
+  }, [suiClient])
+
   if (isLoading && !dataset) {
     return <div className="container mx-auto p-4 text-center">Loading dataset metadata...</div>;
   }
@@ -406,7 +414,7 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
           <div className="flex items-center gap-2 mb-1">
             <h1 className="text-2xl flex items-baseline">
               <Link href={`/user/${dataset.owner}`} className="text-slate-400 dark:text-slate-500 mx-1">
-                <span className="font-medium text-slate-700 dark:text-slate-300">{shortAddress(dataset.owner)}</span>
+                <Name address={dataset.owner} resolveNameServiceNames={resolveNameServiceNames} />
               </Link>
               <span className="text-slate-400 dark:text-slate-500 mx-1">/</span>
               <span className="font-semibold text-slate-900 dark:text-slate-100">{dataset.name}</span>
