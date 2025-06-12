@@ -2,23 +2,23 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import Name from "@/components/name";
 import Avatar from "@/components/avatar";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { usePathname, useRouter } from "next/navigation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ConnectModal, useCurrentAccount, useDisconnectWallet } from "@mysten/dapp-kit";
+import { ConnectModal, useCurrentAccount, useDisconnectWallet, useSuiClient } from "@mysten/dapp-kit";
 
 export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
+  const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();
   const [isCreating, setIsCreating] = useState(false);
   const { mutate: disconnect } = useDisconnectWallet();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const shortAddress = (address: string) =>
-    address.slice(0, 6) + "..." + address.slice(-4);
 
   useEffect(() => {
     setIsCreating(pathname.includes("create"));
@@ -42,6 +42,14 @@ export default function Header() {
       router.push(`/user/${currentAccount.address}`);
     }
   };
+
+  const resolveNameServiceNames = useCallback(async (address: string) => {
+    const response = await suiClient.resolveNameServiceNames({
+      address,
+      format: "at",
+    });
+    return response.data[0];
+  }, [suiClient])
 
   return (
     <header className="top-0 z-50 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -71,7 +79,7 @@ export default function Header() {
                 <Button variant="outline">
                   <div className="flex items-center space-x-2">
                     <Avatar address={currentAccount.address} />
-                    {shortAddress(currentAccount.address)}
+                    <Name address={currentAccount.address} resolveNameServiceNames={resolveNameServiceNames} />
                   </div>
                 </Button>
               </PopoverTrigger>
