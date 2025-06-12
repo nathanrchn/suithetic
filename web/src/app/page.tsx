@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Database, Lock, BarChart3, Layers, Shield, ExternalLink } from "lucide-react";
 
@@ -48,6 +49,22 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      <div className="absolute top-16 z-40 w-full bg-transparent py-3 text-center">
+        <div className="container mx-auto flex items-center justify-center px-4">
+          <div className="relative inline-flex items-center rounded-full bg-[#2A2144] p-1 text-white shadow-[0_0_12px_2px_rgba(0,135,122,0.5)]">
+            <Link href="#sui-ns" className="flex items-center gap-2.5 px-2 py-0.5 sm:gap-4">
+              <Badge className="rounded-full border-none bg-[#004B40] px-3 py-1 text-xs font-semibold text-[#7FFFD4] shadow-[0_0_6px_1px_rgba(127,255,212,0.7)]">
+                New
+              </Badge>
+              <span className="whitespace-nowrap text-sm font-semibold">
+                The support for SuiNS is here! Learn More
+                <ArrowRight className="ml-1.5 inline h-4 w-4" />
+              </span>
+            </Link>
+          </div>
+        </div>
+      </div>
 
       <main className="flex-1">
         <section className="w-full min-h-[calc(100vh-4rem)] flex items-center relative">
@@ -260,6 +277,19 @@ export default function Home() {
                 </ul>
               </div>
             </div>
+            <section id="sui-ns" className="w-full bg-background py-12 md:py-16">
+              <div className="container mx-auto px-4 md:px-6">
+                <div className="flex flex-col items-center justify-center space-y-3 text-center">
+                  <div className="space-y-2">
+                    <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm border border-[#6750A4]">New Feature</div>
+                    <h2 className="text-2xl font-bold tracking-tight md:text-3xl">Now Supporting Sui Name Service (SuiNS)</h2>
+                    <p className="mx-auto max-w-[700px] text-muted-foreground md:text-lg">
+                      Suithetic now integrates with SuiNS. This allows you to use human-readable names instead of cryptic wallet addresses for your datasets, making them easier to find, share, and manage. You can find a user using the SuiNS name in the URL instead of the wallet address.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
         </section>
 
