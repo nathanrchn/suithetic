@@ -200,7 +200,10 @@ function CreateInnerPage() {
       if (datasetName) form.setValue("datasetName", datasetName, { shouldValidate: true });
 
       const modelId = searchParams.get("modelId");
-      if (modelId) form.setValue("modelId", modelId, { shouldValidate: true });
+      if (modelId) {
+        form.setValue("modelId", modelId, { shouldValidate: true });
+        setModels([{id: modelId, object: "model", created: 0, owned_by: "", task_small_id: 0, price_per_one_million_compute_units: 1, max_num_compute_units: 1000000}]);
+      }
 
       const maxTokens = searchParams.get("maxTokens");
       if (maxTokens) form.setValue("maxTokens", Number(maxTokens), { shouldValidate: true });
