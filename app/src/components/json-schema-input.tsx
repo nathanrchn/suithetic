@@ -66,20 +66,73 @@ const buildZodShapeRecursive = (
   return shape;
 };
 
-const JsonSchemaInputComponent = ({ setSchema }: { setSchema: (schema: z.ZodObject<any> | null) => void }) => {
+const getPropertiesFromSchema = (schema: any): Property[] => {
+  if (!schema || typeof schema !== 'object' || !schema.properties) {
+    return [];
+  }
+
+  const properties = schema.properties;
+  const required = new Set(schema.required || []);
+
+  return Object.keys(properties).map((key): Property => {
+    const propSchema = properties[key];
+
+    const isArray = propSchema.type === 'array';
+    const typeSchema = isArray ? propSchema.items || {} : propSchema;
+
+    const type = typeSchema.type || 'any';
+    let nestedProperties: Property[] = [];
+
+    if (type === 'object' && typeSchema.properties) {
+      const nestedRequired = new Set(typeSchema.required || []);
+      nestedProperties = Object.keys(typeSchema.properties).map((nestedKey): Property => {
+        const nestedPropSchema = typeSchema.properties[nestedKey];
+        const nestedIsArray = nestedPropSchema.type === 'array';
+        const nestedTypeSchema = nestedIsArray ? nestedPropSchema.items || {} : nestedPropSchema;
+
+        return {
+          id: nanoid(),
+          name: nestedKey,
+          description: nestedPropSchema.description || '',
+          type: nestedTypeSchema.type || 'any',
+          isArray: nestedIsArray,
+          isRequired: nestedRequired.has(nestedKey),
+          nestedProperties: [], 
+        };
+      });
+    }
+
+    return {
+      id: nanoid(),
+      name: key,
+      description: propSchema.description || '',
+      type,
+      isArray,
+      isRequired: required.has(key),
+      nestedProperties,
+    };
+  });
+};
+
+const JsonSchemaInputComponent = ({ schema, setSchema }: { schema: object | null, setSchema: (schema: z.ZodObject<any> | null) => void }) => {
   const [confirmed, setConfirmed] = useState(false);
   const [properties, setProperties] = useState<Property[]>([]);
 
   useEffect(() => {
-    setConfirmed(false);
-  }, [properties]);
+    if (schema) {
+      setProperties(getPropertiesFromSchema(schema));
+      setConfirmed(true);
+    }
+  }, [schema]);
 
   const addProperty = () => {
     setProperties([...properties, { id: nanoid(), name: "", description: "", type: "string", isArray: false, isRequired: false, nestedProperties: [] }]);
+    setConfirmed(false);
   };
 
   const addNestedProperty = (parentId: string) => {
     setProperties(properties.map(prop => prop.id === parentId ? { ...prop, nestedProperties: [...prop.nestedProperties, { id: nanoid(), name: "", description: "", type: "string", isArray: false, isRequired: false, nestedProperties: [] }] } : prop));
+    setConfirmed(false);
   };
 
   const deleteProperty = (id: string, parentId?: string) => {
@@ -88,6 +141,7 @@ const JsonSchemaInputComponent = ({ setSchema }: { setSchema: (schema: z.ZodObje
     } else {
       setProperties(properties.filter(prop => prop.id !== id));
     }
+    setConfirmed(false);
   };
 
   const handlePropertyNameChange = (id: string, name: string, parentId?: string) => {
@@ -96,6 +150,7 @@ const JsonSchemaInputComponent = ({ setSchema }: { setSchema: (schema: z.ZodObje
     } else {
       setProperties(properties.map(prop => prop.id === id ? { ...prop, name } : prop));
     }
+    setConfirmed(false);
   };
 
   const handlePropertyDescriptionChange = (id: string, description: string, parentId?: string) => {
@@ -104,6 +159,7 @@ const JsonSchemaInputComponent = ({ setSchema }: { setSchema: (schema: z.ZodObje
     } else {
       setProperties(properties.map(prop => prop.id === id ? { ...prop, description } : prop));
     }
+    setConfirmed(false);
   };
 
   const handlePropertyTypeChange = (id: string, type: string, parentId?: string) => {
@@ -112,6 +168,7 @@ const JsonSchemaInputComponent = ({ setSchema }: { setSchema: (schema: z.ZodObje
     } else {
       setProperties(properties.map(prop => prop.id === id ? { ...prop, type } : prop));
     }
+    setConfirmed(false);
   };
 
   const handleIsArrayChange = (id: string, isArray: boolean, parentId?: string) => {
@@ -120,6 +177,7 @@ const JsonSchemaInputComponent = ({ setSchema }: { setSchema: (schema: z.ZodObje
     } else {
       setProperties(properties.map(prop => prop.id === id ? { ...prop, isArray } : prop));
     }
+    setConfirmed(false);
   };
 
   const handleIsRequiredChange = (id: string, isRequired: boolean, parentId?: string) => {
@@ -128,6 +186,7 @@ const JsonSchemaInputComponent = ({ setSchema }: { setSchema: (schema: z.ZodObje
     } else {
       setProperties(properties.map(prop => prop.id === id ? { ...prop, isRequired } : prop));
     }
+    setConfirmed(false);
   };
 
   const handleConfirm = () => {

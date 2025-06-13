@@ -1,7 +1,8 @@
+import { z } from "zod";
+import Link from "next/link";
 import { HFDataset } from "@/lib/types";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export type Template = {
   name: string;
@@ -14,6 +15,7 @@ export type Template = {
   modelId: string;
   price: number;
   visibility: number;
+  jsonSchema?: z.ZodObject<any>;
   color?: "blue" | "purple" | "green" | "orange" | "pink" | "teal";
 };
 
@@ -45,10 +47,9 @@ const colorVariants = {
 };
 
 export function TemplateCard({ template }: { template: Template }) {
-  const router = useRouter();
   const colors = colorVariants[template.color || "blue"];
 
-  const handleClick = () => {
+  const getParams = () => {
     const params = new URLSearchParams({
       datasetPath: template.dataset.path,
       datasetConfig: template.dataset.config,
@@ -63,26 +64,22 @@ export function TemplateCard({ template }: { template: Template }) {
       visibility: template.visibility.toString(),
       price: template.price.toString(),
     });
-    router.push(`/create?${params.toString()}`);
+    if (template.jsonSchema) {
+      params.set("jsonSchema", JSON.stringify(zodToJsonSchema(template.jsonSchema)));
+    }
+    return params.toString();
   };
 
   return (
-    <Card className={`${colors.card} hover:shadow-md transition-all duration-200 hover:scale-102`}>
-      <CardContent className="px-3 py-0">
-        <div className="space-y-2">
-          <div>
-            <h3 className="font-medium text-base text-gray-900 dark:text-gray-100">{template.name}</h3>
-            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">{template.description}</p>
-          </div>
-          <Button 
-            onClick={handleClick}
-            size="sm"
-            className={`w-full ${colors.button} text-white font-medium py-1.5 px-3 rounded-md shadow-sm transition-all duration-200`}
-          >
-            Create
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <Link href={`/create?${getParams()}`}>
+      <Card className={`${colors.card} hover:shadow-md transition-all duration-200 hover:scale-102`}>
+        <CardHeader>
+          <CardTitle>{template.name}</CardTitle>
+          <CardDescription>{template.description}</CardDescription>
+        </CardHeader>
+        <CardContent className="px-3 py-0">
+        </CardContent>
+      </Card>
+    </Link>
   );
 }

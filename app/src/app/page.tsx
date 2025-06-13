@@ -1,5 +1,6 @@
 "use client";
 
+import { z } from "zod";
 import { X } from "lucide-react";
 import { DatasetObject } from "@/lib/types";
 import { getLockedDatasets } from "@/lib/actions";
@@ -26,6 +27,10 @@ const templates: Template[] = [
   //   price: 1,
   //   visibility: 0,
   //   color: "purple",
+  //   jsonSchema: z.object({
+  //     name: z.string().describe("The name of the person"),
+  //     age: z.number().describe("The age of the person"),
+  //   }),
   // },
   // {
   //   name: "UltraChat",

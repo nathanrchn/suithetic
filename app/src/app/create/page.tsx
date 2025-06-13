@@ -19,8 +19,8 @@ import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
 import JsonSchemaInput from "@/components/json-schema-input";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
 import { generatePromptWithWizard, getRows, generateRow, storeBlob } from "@/app/create/actions";
@@ -108,6 +108,7 @@ function CreateInnerPage() {
   const [datasetObjectId, setDatasetObjectId] = useState<string | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState<boolean>(false);
   const [isPromptGenerating, setIsPromptGenerating] = useState<boolean>(false);
+  const [initialJsonSchema, setInitialJsonSchema] = useState<object | null>(null);
   const [wizardPromptGenerated, setWizardPromptGenerated] = useState<boolean>(false);
   const [isDatasetGenerationLoading, setIsDatasetGenerationLoading] = useState<boolean>(false);
   const [syntheticDatasetOutput, setSyntheticDatasetOutput] = useState<SyntheticDataResultItem[]>([]);
@@ -229,6 +230,13 @@ function CreateInnerPage() {
       if (wizardPromptValue) {
         setWizardPrompt(wizardPromptValue);
         setIsWizardOpen(true);
+      }
+
+      const jsonSchema = searchParams.get("jsonSchema");
+      if (jsonSchema) {
+        // console.log(JSON.parse(jsonSchema));
+        setInitialJsonSchema(JSON.parse(jsonSchema));
+        form.setValue("isStructured", true, { shouldValidate: true });
       }
     };
 
@@ -719,7 +727,7 @@ function CreateInnerPage() {
                     {form.watch("isStructured") && (
                       <div>
                         <h3 className="text-lg font-semibold mb-2 mt-4">JSON Schema</h3>
-                        <JsonSchemaInput setSchema={setJsonSchema} />
+                        <JsonSchemaInput schema={initialJsonSchema} setSchema={setJsonSchema} />
                       </div>
                     )}
                   </CardContent>
