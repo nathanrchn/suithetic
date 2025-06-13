@@ -10,12 +10,11 @@ export type Template = {
   dataset: Pick<HFDataset, "path" | "config" | "split">;
   prompt: string;
   inputFeature: string;
-  isStructured: boolean;
   maxTokens: number;
   modelId: string;
   price: number;
   visibility: number;
-  logo: string;
+  logo: any;
   jsonSchema?: z.ZodObject<any>;
   color?: "blue" | "purple" | "green" | "orange" | "pink" | "teal";
 };
@@ -60,7 +59,6 @@ export function TemplateCard({ template }: { template: Template }) {
       modelId: template.modelId,
       maxTokens: template.maxTokens.toString(),
       inputFeature: template.inputFeature,
-      isStructured: template.isStructured.toString(),
       prompt: template.prompt,
       visibility: template.visibility.toString(),
       price: template.price.toString(),
@@ -78,8 +76,8 @@ export function TemplateCard({ template }: { template: Template }) {
           <CardTitle>{template.name}</CardTitle>
           <CardDescription>{template.description}</CardDescription>
         </CardHeader>
-        <CardContent>
-
+        <CardContent className="flex justify-center items-center">
+          {template.logo}
         </CardContent>
       </Card>
     </Link>

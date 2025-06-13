@@ -1,71 +1,75 @@
 "use client";
 
 import { z } from "zod";
-import { X } from "lucide-react";
 import { DatasetObject } from "@/lib/types";
 import { getLockedDatasets } from "@/lib/actions";
 import { Template } from "@/components/template-card";
 import { DatasetList } from "@/components/dataset-list";
 import { useCallback, useEffect, useState } from "react";
 import { TemplateList } from "@/components/template-list";
+import { X, BrainCircuit, Stethoscope, Bot } from "lucide-react";
 import { useSuiClient, useCurrentAccount } from "@mysten/dapp-kit";
 
 const templates: Template[] = [
-  // {
-  //   name: "UltraChat",
-  //   description: "A dataset for ultra-chat",
-  //   dataset: {
-  //     path: "HuggingFaceH4/ultrachat_200k",
-  //     config: "default",
-  //     split: "train_sft",
-  //   },
-  //   prompt: "{input}",
-  //   inputFeature: "prompt",
-  //   isStructured: false,
-  //   maxTokens: 100,
-  //   modelId: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
-  //   price: 1,
-  //   visibility: 0,
-  //   color: "purple",
-  //   jsonSchema: z.object({
-  //     name: z.string().describe("The name of the person"),
-  //     age: z.number().describe("The age of the person"),
-  //   }),
-  // },
-  // {
-  //   name: "UltraChat",
-  //   description: "A dataset for ultra-chat",
-  //   dataset: {
-  //     path: "HuggingFaceH4/ultrachat_200k",
-  //     config: "default",
-  //     split: "train_sft",
-  //   },
-  //   prompt: "{input}",
-  //   inputFeature: "prompt",
-  //   isStructured: false,
-  //   maxTokens: 100,
-  //   modelId: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
-  //   price: 1,
-  //   visibility: 0,
-  //   color: "blue",
-  // },
-  // {
-  //   name: "UltraChat",
-  //   description: "A dataset for ultra-chat",
-  //   dataset: {
-  //     path: "HuggingFaceH4/ultrachat_200k",
-  //     config: "default",
-  //     split: "train_sft",
-  //   },
-  //   prompt: "{input}",
-  //   inputFeature: "prompt",
-  //   isStructured: false,
-  //   maxTokens: 100,
-  //   modelId: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
-  //   price: 1,
-  //   visibility: 0,
-  //   color: "green",
-  // },
+  {
+    name: "UltraChat Instruct",
+    description: "Large-scale Dialogue Data",
+    dataset: {
+      path: "HuggingFaceH4/ultrachat_200k",
+      config: "default",
+      split: "train_sft",
+    },
+    prompt: "Read the following text and answer the questions contained within it based only on the information provided in the text: {input}",
+    inputFeature: "prompt",
+    maxTokens: 1000,
+    modelId: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
+    price: 1,
+    visibility: 0,
+    color: "purple",
+    logo: <BrainCircuit className="h-8 w-8" />,
+  },
+  {
+    name: "Medical Transcription",
+    description: "Medical Transcription Data",
+    dataset: {
+      path: "galileo-ai/medical_transcription_40",
+      config: "default",
+      split: "train",
+    },
+    prompt: "Given the following medical transcription, classify it into one of these categories: [ Pain Management, Chiropractic, Podiatry, Pediatrics - Neonatal, Discharge Summary, Cosmetic / Plastic Surgery, Neurology, Endocrinology, Rheumatology, Orthopedic, Dentistry, Allergy / Immunology, Psychiatry / Psychology, Consult - History and Phy., Dermatology, Radiology, Speech - Language, Physical Medicine - Rehab, Sleep Medicine, Hospice - Palliative Care, Diets and Nutritions, Urology, ENT - Otolaryngology, Gastroenterology, Letters, Surgery, Bariatrics, Ophthalmology, Neurosurgery, Emergency Room Reports, Nephrology, Lab Medicine - Pathology, Office Notes, Cardiovascular / Pulmonary, SOAP / Chart / Progress Notes, Autopsy, General Medicine, IME-QME-Work Comp etc., Obstetrics / Gynecology, Hematology - Oncology]. After classifying, explain your reasoning for the chosen category. Medical Transcription: {input}",
+    inputFeature: "text",
+    maxTokens: 3000,
+    modelId: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
+    price: 5,
+    visibility: 0,
+    color: "blue",
+    logo: <Stethoscope className="h-8 w-8" />,
+    jsonSchema: z.object({
+      explanation: z.string().describe("The explanation of the label"),
+      label: z.enum([" Pain Management", " Chiropractic", " Podiatry", " Pediatrics - Neonatal", " Discharge Summary", " Cosmetic / Plastic Surgery", " Neurology", " Endocrinology", " Rheumatology", " Orthopedic", " Dentistry", " Allergy / Immunology", " Psychiatry / Psychology", " Consult - History and Phy.", " Dermatology", " Radiology", " Speech - Language", " Physical Medicine - Rehab", " Sleep Medicine", " Hospice - Palliative Care", " Diets and Nutritions", " Urology", " ENT - Otolaryngology", " Gastroenterology", " Letters", " Surgery", " Bariatrics", " Ophthalmology", " Neurosurgery", " Emergency Room Reports", " Nephrology", " Lab Medicine - Pathology", " Office Notes", " Cardiovascular / Pulmonary", " SOAP / Chart / Progress Notes", " Autopsy", " General Medicine", " IME-QME-Work Comp etc.", " Obstetrics / Gynecology", " Hematology - Oncology"]).describe("The label of the medical transcription"),
+    }),
+  },
+  {
+    name: "Agentic Computer Use",
+    description: "A dataset for agentic models",
+    dataset: {
+      path: "sunblaze-ucb/AgentSynth",
+      config: "default",
+      split: "train",
+    },
+    prompt: "For the given task, select one of the following tools: 'terminal', 'google', or 'browser'. Then, provide the arguments required to use that tool to complete the task. Arguments for 'terminal' are commands to run, for 'google' are search queries, and for 'browser' are URLs to visit. The task is: {input}",
+    inputFeature: "task_level_2",
+    maxTokens: 2000,
+    modelId: "Infermatic/Llama-3.3-70B-Instruct-FP8-Dynamic",
+    price: 1,
+    visibility: 0,
+    color: "green",
+    logo: <Bot className="h-8 w-8" />,
+    jsonSchema: z.object({
+      tool_name: z.enum(["terminal", "google", "browser"]).describe("The tool name used to complete the task"),
+      tool_arguments: z.array(z.string()).describe("The arguments used to complete the task: for terminal, the arguments are the commands to run. for google, the arguments are the search query. for browser, the arguments are the url to visit"),
+    }),
+  },
 ];
 
 export default function Home() {

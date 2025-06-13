@@ -208,9 +208,6 @@ function CreateInnerPage() {
       const inputFeature = searchParams.get("inputFeature");
       if (inputFeature) form.setValue("inputFeature", inputFeature, { shouldValidate: true });
 
-      const isStructured = searchParams.get("isStructured");
-      if (isStructured) form.setValue("isStructured", isStructured === 'true', { shouldValidate: true });
-
       const prompt = searchParams.get("prompt");
       if (prompt) {
         form.setValue("prompt", prompt, { shouldValidate: true });
