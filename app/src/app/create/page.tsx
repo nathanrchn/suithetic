@@ -595,6 +595,10 @@ function CreateInnerPage() {
     return <DatasetViewer features={features} data={data} />
   }, [features, data]);
 
+  useEffect(() => {
+    console.log("form", form.formState.isValid, form.formState.errors);
+  }, [form]);
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
