@@ -120,7 +120,11 @@ const JsonSchemaInputComponent = ({ schema, setSchema }: { schema: object | null
 
   useEffect(() => {
     if (schema) {
-      setProperties(getPropertiesFromSchema(schema));
+      const properties = getPropertiesFromSchema(schema);
+      setProperties(properties);
+      const shape = buildZodShapeRecursive(properties, 0, 1);
+      const generatedSchema = z.object(shape);
+      setSchema(generatedSchema);
       setConfirmed(true);
     }
   }, [schema]);
