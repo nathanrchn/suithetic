@@ -15,6 +15,7 @@ export type Template = {
   modelId: string;
   price: number;
   visibility: number;
+  logo: string;
   jsonSchema?: z.ZodObject<any>;
   color?: "blue" | "purple" | "green" | "orange" | "pink" | "teal";
 };
@@ -77,7 +78,8 @@ export function TemplateCard({ template }: { template: Template }) {
           <CardTitle>{template.name}</CardTitle>
           <CardDescription>{template.description}</CardDescription>
         </CardHeader>
-        <CardContent className="px-3 py-0">
+        <CardContent>
+
         </CardContent>
       </Card>
     </Link>
