@@ -222,7 +222,6 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
             signature: dataRow.signature,
             response_hash: dataRow.response_hash,
           }));
-          console.log(formattedForViewer);
           setParsedData(formattedForViewer);
         } else {
           console.error("Parsed data is not in the expected format:", rawParsedData);
@@ -333,8 +332,6 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
           setHasAccess(true);
         },
         onError: (err: any) => {
-          // console.error("Purchase transaction failed:", err);
-          // setError(`Failed to purchase dataset: ${err.message}`);
           setSuccessMessage("Successfully purchased access to the dataset! Decryption should start soon.");
           fetchDatasetData();
           setHasAccess(true);

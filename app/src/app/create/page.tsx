@@ -25,10 +25,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
+import { generatePromptWithWizard, getRows, generateRow, storeBlob } from "@/app/create/actions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT, MIST_PER_USDC, TESTNET_USDC_TYPE } from "@/lib/constants";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { generatePromptWithWizard, getRows, generateRow, storeBlob, getAtomaNetworkStatus } from "@/app/create/actions";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const generateSyntheticDataset = async (dataset: HFDataset, generationConfig: GenerationConfig, setProgress: (progress: number) => void) => {
@@ -106,7 +106,6 @@ function CreateInnerPage() {
   const [isStoringDataset, setIsStoringDataset] = useState<boolean>(false);
   const [jsonSchema, setJsonSchema] = useState<z.ZodObject<any> | null>(null);
   const [datasetObjectId, setDatasetObjectId] = useState<string | null>(null);
-  const [atomaNetworkStatus, setAtomaNetworkStatus] = useState<boolean>(true);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState<boolean>(false);
   const [isPromptGenerating, setIsPromptGenerating] = useState<boolean>(false);
   const [initialJsonSchema, setInitialJsonSchema] = useState<object | null>(null);
@@ -600,13 +599,7 @@ function CreateInnerPage() {
     console.log("form", form.formState.isValid, form.formState.errors);
   }, [form]);
 
-  useEffect(() => {
-    getAtomaNetworkStatus().then((status) => {
-      setAtomaNetworkStatus(status);
-    });
-  }, []);
-
-  if (!atomaNetworkStatus) {
+  if (true) {
     return (
       <div className="flex min-h-[calc(100vh-200px)] flex-col items-center justify-center gap-4 text-center">
         <ServerOff className="h-16 w-16 text-red-500" />
@@ -615,13 +608,6 @@ function CreateInnerPage() {
           We're sorry for the inconvenience, but the Atoma Network is currently
           unavailable. Please try again later.
         </p>
-        <Button onClick={() => {
-          getAtomaNetworkStatus().then((status) => {
-            setAtomaNetworkStatus(status);
-          });
-        }}>
-          Refresh
-        </Button>
       </div>
     );
   }

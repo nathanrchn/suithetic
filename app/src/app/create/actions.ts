@@ -124,7 +124,3 @@ export const storeBlob = async (encryptedData: Uint8Array, numEpochs: number) =>
     }
   }
 }
-
-export const getAtomaNetworkStatus = async () => {
-  return false;
-}
