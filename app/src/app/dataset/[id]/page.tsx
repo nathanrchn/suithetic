@@ -222,8 +222,8 @@ export default function DatasetPage({ params }: { params: Promise<{ id: string }
             signature: dataRow.signature,
             response_hash: dataRow.response_hash,
           }));
+          console.log(formattedForViewer);
           setParsedData(formattedForViewer);
-
         } else {
           console.error("Parsed data is not in the expected format:", rawParsedData);
           setError("Dataset content is not in the expected format.");

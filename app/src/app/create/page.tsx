@@ -34,6 +34,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 const generateSyntheticDataset = async (dataset: HFDataset, generationConfig: GenerationConfig, setProgress: (progress: number) => void) => {
   const output: SyntheticDataResultItem[] = [];
 
+  await new Promise(resolve => setTimeout(resolve, 20000));
+
   let offset = 0;
   let totalTokensUsed = 0;
   let rows: any[] = await getRows(dataset, offset, 10);

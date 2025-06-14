@@ -11,6 +11,10 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const verifyEd25519Signature = (signature: string, hash: string): boolean => {
+  if (signature === "" || hash === "") {
+    return false;
+  }
+  
   const bytes = Uint8Array.from(Buffer.from(signature, "base64"));
   const signatureBytes = bytes.slice(1, ED25519_SIGNATURE_LENGTH + 1);
   const publicKeyBytes = bytes.slice(ED25519_SIGNATURE_LENGTH + 1);
