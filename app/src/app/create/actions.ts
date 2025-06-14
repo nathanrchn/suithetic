@@ -32,18 +32,13 @@ export async function generateRow(row: string, config: GenerationConfig, maxToke
 
     if (config.jsonSchema) {
       const { object, usage, response: { body } } = await generateObject({
-        model: google("gemini-2.5-flash-preview-05-20"), // atoma(config.model),
+        model: atoma(config.model),
         prompt,
         schema: JSONSchemaToZod.convert(config.jsonSchema),
         maxTokens,
       });
 
-      console.log(object);
-      console.log(usage);
-
-      // const { signature, response_hash } = body as ResponseBody;
-      const response_hash = "Dp9tjWxW7IOyXV9QuKhDI0OB43S77cfABq4k/CFZxtU=";
-      const signature = "AILK+QPk4aeA+6kThF+dDkCfQzEsglkFAB/z5trTlhrd8s4Sby2fLSLORfjMC1wr5SVStDNIMLzNeb4Ki2UfJQmFBZfXnCPMoOeonakWV44d1B2bMaiYa0nxd35fPl4QWQ==";
+      const { signature, response_hash } = body as ResponseBody;
 
       return {
         result: object,
@@ -53,17 +48,12 @@ export async function generateRow(row: string, config: GenerationConfig, maxToke
       };
     } else {
       const { text, usage, response: { body } } = await generateText({
-        model: google("gemini-2.5-flash-preview-05-20"), // atoma(config.model),
+        model: atoma(config.model),
         prompt,
         maxTokens,
       });
 
-      console.log(text);
-      console.log(usage);
-
-      // const { signature, response_hash } = body as ResponseBody;
-      const response_hash = "Dp9tjWxW7IOyXV9QuKhDI0OB43S77cfABq4k/CFZxtU=";
-      const signature = "AILK+QPk4aeA+6kThF+dDkCfQzEsglkFAB/z5trTlhrd8s4Sby2fLSLORfjMC1wr5SVStDNIMLzNeb4Ki2UfJQmFBZfXnCPMoOeonakWV44d1B2bMaiYa0nxd35fPl4QWQ==";
+      const { signature, response_hash } = body as ResponseBody;
 
       return {
         result: text,
@@ -133,4 +123,8 @@ export const storeBlob = async (encryptedData: Uint8Array, numEpochs: number) =>
       console.error(error);
     }
   }
+}
+
+export const getAtomaNetworkStatus = async () => {
+  return false;
 }

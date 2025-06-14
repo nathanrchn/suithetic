@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Sparkles } from "lucide-react";
 import { fromHex, toHex } from "@mysten/sui/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
@@ -17,24 +16,23 @@ import DatasetInput from "@/components/dataset-input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Transaction } from "@mysten/sui/transactions";
 import DatasetViewer from "@/components/dataset-viewer";
+import { Loader2, Sparkles, ServerOff } from "lucide-react";
 import JsonSchemaInput from "@/components/json-schema-input";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
 import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AtomaModel, GenerationConfig, HFDataset, SyntheticDataResultItem } from "@/lib/types";
-import { generatePromptWithWizard, getRows, generateRow, storeBlob } from "@/app/create/actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TESTNET_PACKAGE_ID, TESTNET_SUITHETIC_OBJECT, MIST_PER_USDC, TESTNET_USDC_TYPE } from "@/lib/constants";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { generatePromptWithWizard, getRows, generateRow, storeBlob, getAtomaNetworkStatus } from "@/app/create/actions";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const generateSyntheticDataset = async (dataset: HFDataset, generationConfig: GenerationConfig, setProgress: (progress: number) => void) => {
   const output: SyntheticDataResultItem[] = [];
-
-  await new Promise(resolve => setTimeout(resolve, 20000));
 
   let offset = 0;
   let totalTokensUsed = 0;
@@ -108,6 +106,7 @@ function CreateInnerPage() {
   const [isStoringDataset, setIsStoringDataset] = useState<boolean>(false);
   const [jsonSchema, setJsonSchema] = useState<z.ZodObject<any> | null>(null);
   const [datasetObjectId, setDatasetObjectId] = useState<string | null>(null);
+  const [atomaNetworkStatus, setAtomaNetworkStatus] = useState<boolean>(true);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState<boolean>(false);
   const [isPromptGenerating, setIsPromptGenerating] = useState<boolean>(false);
   const [initialJsonSchema, setInitialJsonSchema] = useState<object | null>(null);
@@ -600,6 +599,32 @@ function CreateInnerPage() {
   useEffect(() => {
     console.log("form", form.formState.isValid, form.formState.errors);
   }, [form]);
+
+  useEffect(() => {
+    getAtomaNetworkStatus().then((status) => {
+      setAtomaNetworkStatus(status);
+    });
+  }, []);
+
+  if (!atomaNetworkStatus) {
+    return (
+      <div className="flex min-h-[calc(100vh-200px)] flex-col items-center justify-center gap-4 text-center">
+        <ServerOff className="h-16 w-16 text-red-500" />
+        <h1 className="text-3xl font-bold">Atoma Network Unavailable</h1>
+        <p className="max-w-sm text-muted-foreground">
+          We're sorry for the inconvenience, but the Atoma Network is currently
+          unavailable. Please try again later.
+        </p>
+        <Button onClick={() => {
+          getAtomaNetworkStatus().then((status) => {
+            setAtomaNetworkStatus(status);
+          });
+        }}>
+          Refresh
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <Form {...form}>
