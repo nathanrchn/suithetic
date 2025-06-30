@@ -10,13 +10,6 @@ export const metadata: Metadata = {
   description: "Generate secure, private, and efficient synthetic data with Suithetic - powered by SUI blockchain, Atoma Network, Walrus storage, and Seal encryption.",
   authors: [{ name: "Nathan Ranchin", url: "https://nathanrchn.com" }],
   creator: "Nathan Ranchin",
-  openGraph: {
-    title: "Suithetic",
-    description: "Verified Structured Synthetic Data on SUI for Agentic AI Training",
-    url: "https://suithetic.com",
-    siteName: "Suithetic",
-    images: [{ url: "logo.png" }]
-  }
 };
 
 export default function RootLayout({
